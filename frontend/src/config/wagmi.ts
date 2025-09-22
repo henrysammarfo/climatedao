@@ -34,7 +34,7 @@ export const config = createConfig({
     injected(),
     metaMask(),
     walletConnect({
-      projectId: 'your-project-id',
+      projectId: (import.meta as any).env?.VITE_WALLETCONNECT_PROJECT_ID || '20255749664031d14f00d4dee2989433',
     }),
   ],
   transports: {
