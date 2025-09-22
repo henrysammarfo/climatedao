@@ -10,12 +10,15 @@ export const useTribes = () => {
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  // Initialize user profile
+  // Initialize user profile with real Tribes SDK
   const initializeUser = useCallback(async (username?: string) => {
     if (!address) return null
 
     setIsLoading(true)
     try {
+      // Connect wallet to Tribes SDK first
+      await TribesService.connectWallet()
+      
       const profile = await TribesService.initializeUser(address, username)
       setUserProfile(profile)
       return profile
@@ -124,6 +127,45 @@ export const useTribes = () => {
     }
   }, [address])
 
+  // Convert points to tribe tokens
+  const convertPointsToTokens = useCallback(async (points: number) => {
+    if (!address) return null
+
+    try {
+      const result = await TribesService.convertPointsToTokens(address, points)
+      toast.success(`Converted ${points} points to tokens!`)
+      await loadUserProfile() // Refresh profile
+      return result
+    } catch (error) {
+      console.error('Failed to convert points to tokens:', error)
+      toast.error('Failed to convert points to tokens')
+      return null
+    }
+  }, [address, loadUserProfile])
+
+  // Get ClimateDAO tribe token address
+  const getClimateDAOTokenAddress = useCallback(async () => {
+    try {
+      return await TribesService.getClimateDAOTokenAddress()
+    } catch (error) {
+      console.error('Failed to get ClimateDAO token address:', error)
+      return null
+    }
+  }, [])
+
+  // Create ClimateDAO tribe token
+  const createClimateDAOToken = useCallback(async () => {
+    try {
+      const txHash = await TribesService.createClimateDAOToken()
+      toast.success('ClimateDAO tribe token created successfully!')
+      return txHash
+    } catch (error) {
+      console.error('Failed to create ClimateDAO tribe token:', error)
+      toast.error('Failed to create tribe token')
+      return null
+    }
+  }, [])
+
   // Load initial data
   useEffect(() => {
     if (address) {
@@ -145,6 +187,9 @@ export const useTribes = () => {
     awardXP,
     trackGovernanceAction,
     joinEvent,
-    hasTokenGatedAccess
+    hasTokenGatedAccess,
+    convertPointsToTokens,
+    getClimateDAOTokenAddress,
+    createClimateDAOToken
   }
 }

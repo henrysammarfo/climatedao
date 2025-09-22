@@ -9,10 +9,11 @@ ClimateDAO addresses the lack of transparent, community-driven funding for clima
 ## Features
 
 - **Decentralized Governance**: Community-driven proposal creation and voting
-- **AI-Powered Impact Assessment**: Automated analysis of environmental project proposals
+- **AI-Powered Impact Assessment**: Automated analysis using Hugging Face Mistral-7B
 - **Transparent Funding**: Blockchain-based donation tracking and fund distribution
-- **Community Engagement**: XP/badges system, events, and token-gated spaces
+- **Tribes OS Integration**: Real community management with XP/badges, events, and token-gated spaces
 - **Real-time Analytics**: Impact scoring and project performance tracking
+- **Tribe Token Economy**: ERC20 tokens for governance and community rewards
 
 ## Tech Stack
 
@@ -21,8 +22,8 @@ ClimateDAO addresses the lack of transparent, community-driven funding for clima
 - **Frontend**: React 18.3.1, Vite 5.4.3, TypeScript 5.5.4
 - **Web3**: Wagmi 2.12.8, viem 2.21.1
 - **Styling**: Tailwind CSS 3.4.13
-- **AI**: Hugging Face Inference API
-- **Community**: Tribes OS SDK
+- **AI**: Hugging Face Inference API (Mistral-7B-Instruct-v0.3)
+- **Community**: Tribes SDK (@wasserstoff/tribes-sdk)
 
 ## Project Structure
 

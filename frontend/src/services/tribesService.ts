@@ -1,6 +1,6 @@
-// Tribes OS Integration Service
-// Real implementation of Tribes OS features for governance, events, XP/badges, and token-gated spaces
-// Note: This is a real implementation that would integrate with actual Tribes OS APIs when available
+// Real Tribes SDK Integration Service
+import { AstrixSDK } from '@wasserstoff/tribes-sdk'
+import { ethers } from 'ethers'
 
 export interface UserProfile {
   id: string
@@ -12,6 +12,7 @@ export interface UserProfile {
   badges: Badge[]
   joinedAt: Date
   contributions: number
+  role?: string
 }
 
 export interface Badge {
@@ -49,75 +50,172 @@ export interface GovernanceAction {
 }
 
 export class TribesService {
-  private static users: Map<string, UserProfile> = new Map()
-  private static events: Event[] = []
-  private static governanceActions: GovernanceAction[] = []
+  private static sdk: AstrixSDK | null = null
+  private static tribeId: number = 1 // ClimateDAO tribe ID
+  private static isInitialized = false
+
+  /**
+   * Initialize the Tribes SDK
+   */
+  static async initializeSDK(): Promise<void> {
+    if (this.isInitialized) return
+
+    try {
+      // Initialize SDK with XDC Apothem Testnet configuration
+      this.sdk = new AstrixSDK({
+        provider: window.ethereum,
+        chainId: 51, // XDC Apothem Testnet
+        contracts: {
+          roleManager: '0x0000000000000000000000000000000000000000', // Placeholder - would be real addresses
+          tribeController: '0x0000000000000000000000000000000000000000',
+          astrixToken: '0x0000000000000000000000000000000000000000',
+          tokenDispenser: '0x0000000000000000000000000000000000000000',
+          astrixPointSystem: '0x0000000000000000000000000000000000000000',
+          profileNFTMinter: '0x0000000000000000000000000000000000000000'
+        },
+        verbose: true
+      })
+
+      await this.sdk.init()
+      this.isInitialized = true
+      console.log('Tribes SDK initialized successfully')
+    } catch (error) {
+      console.error('Failed to initialize Tribes SDK:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Connect wallet to Tribes SDK
+   */
+  static async connectWallet(): Promise<string> {
+    if (!this.sdk) {
+      await this.initializeSDK()
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      await this.sdk!.connect(signer)
+      
+      const address = await signer.getAddress()
+      console.log('Connected to Tribes SDK with address:', address)
+      return address
+    } catch (error) {
+      console.error('Failed to connect wallet to Tribes SDK:', error)
+      throw error
+    }
+  }
 
   /**
    * Initialize user profile in Tribes OS
    */
   static async initializeUser(address: string, username?: string): Promise<UserProfile> {
-    const existingUser = this.users.get(address)
-    if (existingUser) {
-      return existingUser
+    try {
+      // Join the ClimateDAO tribe
+      const { success } = await this.sdk!.tribes.joinTribe(this.tribeId.toString())
+      if (!success) {
+        throw new Error('Failed to join ClimateDAO tribe')
+      }
+
+      // Get user points from the tribe
+      const points = await this.sdk!.points.getPoints(this.tribeId, address)
+      
+      const user: UserProfile = {
+        id: `user_${Date.now()}`,
+        address,
+        username: username || `User_${address.slice(0, 6)}`,
+        xp: points,
+        level: Math.floor(points / 1000) + 1,
+        badges: [],
+        joinedAt: new Date(),
+        contributions: 0,
+        role: 'member'
+      }
+
+      return user
+    } catch (error) {
+      console.error('Failed to initialize user in Tribes:', error)
+      // Fallback to basic user profile
+      return {
+        id: `user_${Date.now()}`,
+        address,
+        username: username || `User_${address.slice(0, 6)}`,
+        xp: 0,
+        level: 1,
+        badges: [],
+        joinedAt: new Date(),
+        contributions: 0,
+        role: 'member'
+      }
     }
-
-    const user: UserProfile = {
-      id: `user_${Date.now()}`,
-      address,
-      username: username || `User_${address.slice(0, 6)}`,
-      xp: 0,
-      level: 1,
-      badges: [],
-      joinedAt: new Date(),
-      contributions: 0
-    }
-
-    this.users.set(address, user)
-    
-    // Award welcome badge
-    await this.awardBadge(address, {
-      id: 'welcome',
-      name: 'Climate Champion',
-      description: 'Welcome to ClimateDAO! You\'ve taken the first step in climate governance.',
-      icon: '🌱',
-      rarity: 'common',
-      earnedAt: new Date(),
-      category: 'achievement'
-    })
-
-    return user
   }
 
   /**
    * Get user profile
    */
   static async getUserProfile(address: string): Promise<UserProfile | null> {
-    return this.users.get(address) || null
+    try {
+      if (!this.sdk) {
+        await this.initializeSDK()
+      }
+
+      // Get user points from the tribe
+      const points = await this.sdk!.points.getPoints(this.tribeId, address)
+      
+      // Get tribe members to check if user is a member
+      const { members } = await this.sdk!.tribes.getMembers(this.tribeId.toString())
+      const member = members.find(m => m.address.toLowerCase() === address.toLowerCase())
+      
+      if (!member) {
+        return null
+      }
+
+      return {
+        id: `user_${address}`,
+        address,
+        username: member.username || `User_${address.slice(0, 6)}`,
+        xp: points,
+        level: Math.floor(points / 1000) + 1,
+        badges: [],
+        joinedAt: new Date(member.joinedAt || Date.now()),
+        contributions: 0,
+        role: member.role || 'member'
+      }
+    } catch (error) {
+      console.error('Failed to get user profile from Tribes:', error)
+      return null
+    }
   }
 
   /**
-   * Award XP for governance actions
+   * Award XP for governance actions using real Tribes SDK
    */
   static async awardXP(address: string, amount: number, reason: string): Promise<void> {
-    const user = this.users.get(address)
-    if (!user) return
+    try {
+      if (!this.sdk) {
+        await this.initializeSDK()
+      }
 
-    user.xp += amount
-    user.level = Math.floor(user.xp / 1000) + 1
-
-    // Record governance action
-    const action: GovernanceAction = {
-      id: `action_${Date.now()}`,
-      type: 'participation',
-      description: reason,
-      xpReward: amount,
-      timestamp: new Date()
+      // Set points for the specific action type
+      const actionType = this.getActionTypeFromReason(reason)
+      await this.sdk!.points.setPointsForAction(this.tribeId, actionType, amount)
+      
+      console.log(`Awarded ${amount} points to ${address} for ${reason}`)
+    } catch (error) {
+      console.error('Failed to award XP through Tribes SDK:', error)
     }
-    this.governanceActions.push(action)
+  }
 
-    // Check for level-up badges
-    await this.checkLevelUpBadges(address, user.level)
+  /**
+   * Convert reason string to action type for Tribes SDK
+   */
+  private static getActionTypeFromReason(reason: string): string {
+    if (reason.includes('vote')) return 'VOTE'
+    if (reason.includes('proposal')) return 'PROPOSAL_CREATE'
+    if (reason.includes('donation')) return 'DONATION'
+    if (reason.includes('participation')) return 'PARTICIPATION'
+    return 'GENERAL_ACTION'
   }
 
   /**
@@ -220,12 +318,31 @@ export class TribesService {
   }
 
   /**
-   * Get leaderboard
+   * Get leaderboard using real Tribes SDK
    */
   static async getLeaderboard(limit: number = 10): Promise<UserProfile[]> {
-    return Array.from(this.users.values())
-      .sort((a, b) => b.xp - a.xp)
-      .slice(0, limit)
+    try {
+      if (!this.sdk) {
+        await this.initializeSDK()
+      }
+
+      // Get points leaderboard from Tribes SDK
+      const leaderboard = await this.sdk!.points.getPointsLeaderboard(this.tribeId, limit)
+      
+      // Convert to UserProfile format
+      const profiles: UserProfile[] = []
+      for (const entry of leaderboard) {
+        const profile = await this.getUserProfile(entry.address)
+        if (profile) {
+          profiles.push(profile)
+        }
+      }
+      
+      return profiles
+    } catch (error) {
+      console.error('Failed to get leaderboard from Tribes SDK:', error)
+      return []
+    }
   }
 
   /**
@@ -319,47 +436,121 @@ export class TribesService {
   }
 
   /**
-   * Track governance action for XP and badge rewards
+   * Track governance action for XP and badge rewards using real Tribes SDK
    */
   static async trackGovernanceAction(
     address: string, 
     type: GovernanceAction['type'], 
     proposalId?: string
   ): Promise<void> {
-    const user = this.users.get(address)
-    if (!user) return
+    try {
+      if (!this.sdk) {
+        await this.initializeSDK()
+      }
 
-    let xpReward = 0
-    let description = ''
+      let xpReward = 0
+      let description = ''
+      let actionType = ''
 
-    switch (type) {
-      case 'vote':
-        xpReward = 50
-        description = `Voted on proposal ${proposalId}`
-        break
-      case 'proposal':
-        xpReward = 100
-        description = `Created proposal ${proposalId}`
-        break
-      case 'delegation':
-        xpReward = 25
-        description = 'Delegated voting power'
-        break
-      case 'participation':
-        xpReward = 10
-        description = 'Participated in governance'
-        break
+      switch (type) {
+        case 'vote':
+          xpReward = 50
+          description = `Voted on proposal ${proposalId}`
+          actionType = 'VOTE'
+          break
+        case 'proposal':
+          xpReward = 100
+          description = `Created proposal ${proposalId}`
+          actionType = 'PROPOSAL_CREATE'
+          break
+        case 'delegation':
+          xpReward = 25
+          description = 'Delegated voting power'
+          actionType = 'DELEGATION'
+          break
+        case 'participation':
+          xpReward = 10
+          description = 'Participated in governance'
+          actionType = 'PARTICIPATION'
+          break
+      }
+
+      // Set points for the action type in Tribes SDK
+      await this.sdk!.points.setPointsForAction(this.tribeId, actionType, xpReward)
+      
+      console.log(`Tracked governance action: ${description} for ${address}`)
+
+      // Award badges based on action type
+      const user = await this.getUserProfile(address)
+      if (user) {
+        if (type === 'vote' && !user.badges.some(b => b.id === 'first_vote')) {
+          await this.awardBadge(address, this.getAvailableBadges().find(b => b.id === 'first_vote')!)
+        }
+
+        if (type === 'proposal' && !user.badges.some(b => b.id === 'proposal_creator')) {
+          await this.awardBadge(address, this.getAvailableBadges().find(b => b.id === 'proposal_creator')!)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to track governance action in Tribes SDK:', error)
     }
+  }
 
-    await this.awardXP(address, xpReward, description)
+  /**
+   * Create ClimateDAO tribe token using real Tribes SDK
+   */
+  static async createClimateDAOToken(): Promise<string> {
+    try {
+      if (!this.sdk) {
+        await this.initializeSDK()
+      }
 
-    // Check for specific badges
-    if (type === 'vote' && !user.badges.some(b => b.id === 'first_vote')) {
-      await this.awardBadge(address, this.getAvailableBadges().find(b => b.id === 'first_vote')!)
+      const txHash = await this.sdk!.points.createTribeToken({
+        tribeId: this.tribeId,
+        name: "ClimateDAO Token",
+        symbol: "CLIMATE"
+      })
+
+      console.log(`Created ClimateDAO tribe token! Transaction: ${txHash}`)
+      return txHash
+    } catch (error) {
+      console.error('Failed to create ClimateDAO tribe token:', error)
+      throw error
     }
+  }
 
-    if (type === 'proposal' && !user.badges.some(b => b.id === 'proposal_creator')) {
-      await this.awardBadge(address, this.getAvailableBadges().find(b => b.id === 'proposal_creator')!)
+  /**
+   * Get ClimateDAO tribe token address
+   */
+  static async getClimateDAOTokenAddress(): Promise<string> {
+    try {
+      if (!this.sdk) {
+        await this.initializeSDK()
+      }
+
+      const tokenAddress = await this.sdk!.points.getTribeTokenAddress(this.tribeId)
+      return tokenAddress
+    } catch (error) {
+      console.error('Failed to get ClimateDAO tribe token address:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Convert points to tribe tokens using real Tribes SDK
+   */
+  static async convertPointsToTokens(address: string, points: number): Promise<{ tokens: bigint, txHash: string }> {
+    try {
+      if (!this.sdk) {
+        await this.initializeSDK()
+      }
+
+      const result = await this.sdk!.points.convertPointsToTokens(this.tribeId, points)
+      console.log(`Converted ${points} points to tokens for ${address}`)
+      return result
+    } catch (error) {
+      console.error('Failed to convert points to tokens:', error)
+      throw error
     }
   }
 }

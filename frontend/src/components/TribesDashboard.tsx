@@ -19,9 +19,13 @@ const TribesDashboard = () => {
     events, 
     leaderboard, 
     isLoading, 
-    joinEvent
+    joinEvent,
+    convertPointsToTokens,
+    getClimateDAOTokenAddress,
+    createClimateDAOToken
   } = useTribes()
-  const [selectedTab, setSelectedTab] = useState<'profile' | 'events' | 'leaderboard'>('profile')
+  const [selectedTab, setSelectedTab] = useState<'profile' | 'events' | 'leaderboard' | 'tokens'>('profile')
+  const [tokenAddress, setTokenAddress] = useState<string | null>(null)
 
   const getRarityColor = (rarity: Badge['rarity']) => {
     switch (rarity) {
@@ -41,6 +45,23 @@ const TribesDashboard = () => {
       case 'legendary': return <Crown className="w-4 h-4" />
       default: return <Star className="w-4 h-4" />
     }
+  }
+
+  const handleConvertPoints = async (points: number) => {
+    if (userProfile && userProfile.xp >= points) {
+      await convertPointsToTokens(points)
+    }
+  }
+
+  const handleGetTokenAddress = async () => {
+    const address = await getClimateDAOTokenAddress()
+    if (address) {
+      setTokenAddress(address)
+    }
+  }
+
+  const handleCreateToken = async () => {
+    await createClimateDAOToken()
   }
 
   if (isLoading) {
@@ -79,7 +100,8 @@ const TribesDashboard = () => {
           {[
             { id: 'profile', label: 'Profile', icon: Users },
             { id: 'events', label: 'Events', icon: Calendar },
-            { id: 'leaderboard', label: 'Leaderboard', icon: Trophy }
+            { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+            { id: 'tokens', label: 'Tokens', icon: Zap }
           ].map((tab) => {
             const Icon = tab.icon
             return (
@@ -302,6 +324,85 @@ const TribesDashboard = () => {
               <p>No leaderboard data available</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tokens Tab */}
+      {selectedTab === 'tokens' && (
+        <div className="space-y-6">
+          <div className="card">
+            <h3 className="text-lg font-semibold mb-4">ClimateDAO Tribe Token</h3>
+            <div className="space-y-4">
+              <div className="p-4 bg-primary-50 rounded-lg">
+                <h4 className="font-medium text-primary-900 mb-2">Token Information</h4>
+                <p className="text-sm text-primary-700 mb-4">
+                  The ClimateDAO tribe token (CLIMATE) is an ERC20 token that powers the community economy and governance.
+                </p>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleCreateToken}
+                    className="btn-primary text-sm"
+                  >
+                    Create Token
+                  </button>
+                  <button
+                    onClick={handleGetTokenAddress}
+                    className="btn-outline text-sm"
+                  >
+                    Get Token Address
+                  </button>
+                </div>
+                {tokenAddress && (
+                  <div className="mt-4 p-3 bg-white rounded border">
+                    <p className="text-sm font-medium text-gray-700">Token Address:</p>
+                    <p className="text-sm text-gray-600 font-mono break-all">{tokenAddress}</p>
+                  </div>
+                )}
+              </div>
+
+              {userProfile && userProfile.xp > 0 && (
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <h4 className="font-medium text-green-900 mb-2">Convert Points to Tokens</h4>
+                  <p className="text-sm text-green-700 mb-4">
+                    You have {userProfile.xp.toLocaleString()} XP. Convert your points to tribe tokens.
+                  </p>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => handleConvertPoints(100)}
+                      disabled={userProfile.xp < 100}
+                      className="btn-secondary text-sm disabled:opacity-50"
+                    >
+                      Convert 100 XP
+                    </button>
+                    <button
+                      onClick={() => handleConvertPoints(500)}
+                      disabled={userProfile.xp < 500}
+                      className="btn-secondary text-sm disabled:opacity-50"
+                    >
+                      Convert 500 XP
+                    </button>
+                    <button
+                      onClick={() => handleConvertPoints(userProfile.xp)}
+                      className="btn-primary text-sm"
+                    >
+                      Convert All XP
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Token Features</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• ERC20 standard token</li>
+                  <li>• Used for governance voting</li>
+                  <li>• Access to token-gated events</li>
+                  <li>• Convertible from community points</li>
+                  <li>• Tradeable on decentralized exchanges</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
