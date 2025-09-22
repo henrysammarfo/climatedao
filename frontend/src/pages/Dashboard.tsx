@@ -15,9 +15,9 @@ import { useStakingInfo, useDAOStats, useUserProposals, useUserVotes } from '../
 
 const Dashboard = () => {
   const { address } = useAccount()
-  const { userProfile, leaderboard } = useTribes()
+  const { userProfile } = useTribes()
   const { formattedStaked, formattedRewards } = useStakingInfo()
-  const { formattedFunds, totalProposals } = useDAOStats()
+  const { } = useDAOStats()
   const { userProposals } = useUserProposals(address)
   const { userVotes } = useUserVotes(address)
   
@@ -72,13 +72,13 @@ const Dashboard = () => {
       title: 'Community Builder',
       description: 'Invited 10+ community members',
       icon: Users,
-      earned: (userProfile?.invites || 0) >= 10,
+      earned: false, // This would need to be tracked in the user profile
     },
     {
       title: 'Impact Tracker',
       description: 'Tracked 100+ project outcomes',
       icon: Target,
-      earned: (userProfile?.trackedProjects || 0) >= 100,
+      earned: false, // This would need to be tracked in the user profile
     },
   ]
 
@@ -186,7 +186,7 @@ const Dashboard = () => {
         <div className="grid md:grid-cols-3 gap-6">
           <div className="text-center p-6 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <Globe className="w-8 h-8 text-green-600 mx-auto mb-3" />
-            <div className="text-2xl font-bold text-green-600">{userProfile?.co2Impact || '0'}</div>
+            <div className="text-2xl font-bold text-green-600">0</div>
             <div className="text-sm text-gray-600 dark:text-gray-300">Tons CO2 Impact</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">From supported projects</div>
           </div>
@@ -198,7 +198,7 @@ const Dashboard = () => {
           </div>
           <div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Target className="w-8 h-8 text-purple-600 mx-auto mb-3" />
-            <div className="text-2xl font-bold text-purple-600">${userProfile?.totalDonated || '0'}</div>
+            <div className="text-2xl font-bold text-purple-600">$0</div>
             <div className="text-sm text-gray-600 dark:text-gray-300">Total Donated</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">To environmental projects</div>
           </div>

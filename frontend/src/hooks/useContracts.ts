@@ -314,48 +314,21 @@ export const useClaimRewards = () => {
 }
 
 export const useAllProposals = () => {
-  const { data: proposalCount } = useReadContract({
+  const { data: nextProposalId } = useReadContract({
     address: CLIMATE_DAO_ADDRESS as `0x${string}`,
     abi: ClimateDAO_ABI,
-    functionName: 'proposalCount',
+    functionName: 'nextProposalId',
   })
 
-  const proposals = []
-  
-  // Fetch all proposals
-  if (proposalCount && proposalCount > 0n) {
-    for (let i = 1n; i <= proposalCount; i++) {
-      const { data: proposalAddress } = useReadContract({
-        address: CLIMATE_DAO_ADDRESS as `0x${string}`,
-        abi: ClimateDAO_ABI,
-        functionName: 'proposals',
-        args: [i],
-      })
-
-      if (proposalAddress) {
-        // Fetch proposal details from the Proposal contract
-        const { data: proposalData } = useReadContract({
-          address: proposalAddress as `0x${string}`,
-          abi: ClimateDAO_ABI, // Assuming Proposal contract has similar ABI
-          functionName: 'getProposalData',
-        })
-
-        if (proposalData) {
-          proposals.push({
-            id: Number(i),
-            address: proposalAddress,
-            ...proposalData,
-            status: 'Active', // This should be determined by checking voting deadline
-          })
-        }
-      }
-    }
-  }
+  // Since the contract doesn't have a way to fetch individual proposals,
+  // we'll return an empty array for now. In a real implementation,
+  // you'd need to add events or additional view functions to the contract
+  const proposals: any[] = []
 
   return {
     proposals,
-    isLoading: false, // Could be improved with proper loading states
-    totalCount: proposalCount ? Number(proposalCount) : 0
+    isLoading: false,
+    totalCount: nextProposalId ? Number(nextProposalId) - 1 : 0 // nextProposalId is 1-indexed
   }
 }
 
@@ -372,9 +345,7 @@ export const useUserProposals = (userAddress?: `0x${string}`) => {
   }
 }
 
-export const useUserVotes = (userAddress?: `0x${string}`) => {
-  const { proposals } = useAllProposals()
-  
+export const useUserVotes = (_userAddress?: `0x${string}`) => {
   // This would need to be implemented by checking each proposal's voting records
   // For now, returning empty array as this requires more complex contract interaction
   const userVotes: any[] = []
@@ -385,31 +356,13 @@ export const useUserVotes = (userAddress?: `0x${string}`) => {
   }
 }
 
-export const useProposal = (proposalId: number) => {
-  const { data: proposalAddress } = useReadContract({
-    address: CLIMATE_DAO_ADDRESS as `0x${string}`,
-    abi: ClimateDAO_ABI,
-    functionName: 'proposals',
-    args: [BigInt(proposalId)],
-  })
-
-  const { data: proposalData } = useReadContract({
-    address: proposalAddress as `0x${string}`,
-    abi: ClimateDAO_ABI,
-    functionName: 'getProposalData',
-    query: {
-      enabled: !!proposalAddress,
-    },
-  })
-
+export const useProposal = (_proposalId: number) => {
+  // Since the contract doesn't have a way to fetch individual proposals,
+  // we'll return null for now. In a real implementation,
+  // you'd need to add events or additional view functions to the contract
   return {
-    proposal: proposalData ? {
-      id: proposalId,
-      address: proposalAddress,
-      ...proposalData,
-      status: 'Active', // This should be determined by checking voting deadline
-    } : null,
-    isLoading: !proposalData && !!proposalAddress
+    proposal: null,
+    isLoading: false
   }
 }
 
@@ -425,20 +378,12 @@ export const useVote = () => {
     }
 
     try {
-      // Get proposal address first
-      const proposalAddress = await writeContract({
+      // Use the correct function from the ABI
+      await writeContract({
         address: CLIMATE_DAO_ADDRESS as `0x${string}`,
         abi: ClimateDAO_ABI,
-        functionName: 'proposals',
-        args: [BigInt(proposalId)],
-      })
-
-      // Cast vote on the proposal
-      await writeContract({
-        address: proposalAddress as `0x${string}`,
-        abi: ClimateDAO_ABI,
-        functionName: 'castVote',
-        args: [BigInt(choice), 1n], // choice and weight (1 token = 1 vote)
+        functionName: 'voteOnProposal',
+        args: [BigInt(proposalId), choice, 1n], // proposalId, voteChoice, weight
       })
     } catch (err) {
       console.error('Voting error:', err)
