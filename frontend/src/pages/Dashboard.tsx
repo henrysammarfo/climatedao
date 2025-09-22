@@ -8,73 +8,77 @@ import {
   Globe,
   Crown
 } from 'lucide-react'
+import { useAccount } from 'wagmi'
 import TribesDashboard from '../components/TribesDashboard'
 import { useTribes } from '../hooks/useTribes'
-import { useStakingInfo, useDAOStats } from '../hooks/useContracts'
+import { useStakingInfo, useDAOStats, useUserProposals, useUserVotes } from '../hooks/useContracts'
 
 const Dashboard = () => {
-  const { userProfile } = useTribes()
+  const { address } = useAccount()
+  const { userProfile, leaderboard } = useTribes()
   const { formattedStaked, formattedRewards } = useStakingInfo()
-  const { formattedFunds } = useDAOStats()
+  const { formattedFunds, totalProposals } = useDAOStats()
+  const { userProposals } = useUserProposals(address)
+  const { userVotes } = useUserVotes(address)
   
   const stats = [
-    { label: 'Your Proposals', value: '3', icon: FileText, change: '+1 this month' },
-    { label: 'Votes Cast', value: '47', icon: Users, change: '+12 this week' },
-    { label: 'Contribution Score', value: userProfile?.xp.toLocaleString() || '0', icon: Award, change: `Level ${userProfile?.level || 1}` },
+    { label: 'Your Proposals', value: userProposals?.length.toString() || '0', icon: FileText, change: 'Active proposals' },
+    { label: 'Votes Cast', value: userVotes?.length.toString() || '0', icon: Users, change: 'Total votes' },
+    { label: 'Contribution Score', value: userProfile?.xp?.toLocaleString() || '0', icon: Award, change: `Level ${userProfile?.level || 1}` },
     { label: 'Tokens Staked', value: formattedStaked, icon: DollarSign, change: `Rewards: ${formattedRewards} CLIMATE` },
   ]
 
+  // Real activity data from user actions
   const recentActivity = [
-    {
+    ...(userVotes?.slice(0, 2).map(vote => ({
       type: 'vote',
-      action: 'Voted for "Solar Farm in Kenya"',
-      time: '2 hours ago',
+      action: `Voted ${vote.choice === 1 ? 'for' : vote.choice === 0 ? 'against' : 'abstained'} on proposal #${vote.proposalId}`,
+      time: new Date(vote.timestamp * 1000).toLocaleDateString(),
       icon: Users,
-    },
-    {
+    })) || []),
+    ...(userProposals?.slice(0, 2).map(proposal => ({
       type: 'proposal',
-      action: 'Created "Ocean Cleanup Initiative"',
-      time: '1 day ago',
+      action: `Created "${proposal.title}"`,
+      time: new Date(proposal.timestamp * 1000).toLocaleDateString(),
       icon: FileText,
-    },
-    {
-      type: 'reward',
-      action: 'Earned 50 XP for active participation',
-      time: '3 days ago',
-      icon: Award,
-    },
-    {
-      type: 'stake',
-      action: 'Staked 100 CLIMATE tokens',
-      time: '1 week ago',
-      icon: DollarSign,
-    },
+    })) || []),
   ]
 
+  // Show message if no activity
+  if (recentActivity.length === 0) {
+    recentActivity.push({
+      type: 'info',
+      action: 'No recent activity. Start by creating a proposal or voting!',
+      time: 'Get started',
+      icon: Activity,
+    })
+  }
+
+  // Real achievements based on user actions
   const achievements = [
     {
       title: 'Climate Champion',
       description: 'Voted on 50+ environmental proposals',
       icon: Award,
-      earned: true,
+      earned: (userVotes?.length || 0) >= 50,
     },
     {
       title: 'Proposal Creator',
       description: 'Created your first proposal',
       icon: FileText,
-      earned: true,
+      earned: (userProposals?.length || 0) > 0,
     },
     {
       title: 'Community Builder',
       description: 'Invited 10+ community members',
       icon: Users,
-      earned: false,
+      earned: (userProfile?.invites || 0) >= 10,
     },
     {
       title: 'Impact Tracker',
       description: 'Tracked 100+ project outcomes',
       icon: Target,
-      earned: false,
+      earned: (userProfile?.trackedProjects || 0) >= 100,
     },
   ]
 
@@ -180,23 +184,23 @@ const Dashboard = () => {
       <div className="card">
         <h2 className="text-xl font-semibold mb-6">Your Climate Impact</h2>
         <div className="grid md:grid-cols-3 gap-6">
-          <div className="text-center p-6 bg-green-50 rounded-lg">
+          <div className="text-center p-6 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <Globe className="w-8 h-8 text-green-600 mx-auto mb-3" />
-            <div className="text-2xl font-bold text-green-600">2.5K</div>
-            <div className="text-sm text-gray-600">Tons CO2 Impact</div>
-            <div className="text-xs text-gray-500 mt-1">From supported projects</div>
+            <div className="text-2xl font-bold text-green-600">{userProfile?.co2Impact || '0'}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">Tons CO2 Impact</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">From supported projects</div>
           </div>
-          <div className="text-center p-6 bg-blue-50 rounded-lg">
+          <div className="text-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <Activity className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-            <div className="text-2xl font-bold text-blue-600">15</div>
-            <div className="text-sm text-gray-600">Projects Supported</div>
-            <div className="text-xs text-gray-500 mt-1">Through voting & funding</div>
+            <div className="text-2xl font-bold text-blue-600">{userVotes?.length || 0}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">Projects Supported</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Through voting & funding</div>
           </div>
-          <div className="text-center p-6 bg-purple-50 rounded-lg">
+          <div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Target className="w-8 h-8 text-purple-600 mx-auto mb-3" />
-            <div className="text-2xl font-bold text-purple-600">${formattedFunds}</div>
-            <div className="text-sm text-gray-600">Total Donated</div>
-            <div className="text-xs text-gray-500 mt-1">To environmental projects</div>
+            <div className="text-2xl font-bold text-purple-600">${userProfile?.totalDonated || '0'}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">Total Donated</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">To environmental projects</div>
           </div>
         </div>
       </div>

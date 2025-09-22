@@ -6,74 +6,32 @@ import {
   Plus,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  FileText
 } from 'lucide-react'
+import { useAllProposals } from '../hooks/useContracts'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 const Proposals = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('all')
+  const { proposals, isLoading } = useAllProposals()
 
-  const proposals = [
-    {
-      id: 1,
-      title: 'Solar Farm in Kenya',
-      description: 'Building a 50MW solar farm to provide clean energy to 100,000 homes in rural Kenya.',
-      category: 'Renewable Energy',
-      requestedAmount: '$2,500,000',
-      votes: 1247,
-      status: 'Active',
-      impactScore: 92,
-      proposer: '0x1234...5678',
-      endDate: '2024-10-15',
-      daysLeft: 7,
-    },
-    {
-      id: 2,
-      title: 'Ocean Plastic Cleanup Initiative',
-      description: 'Deploying autonomous drones to clean plastic waste from the Pacific Ocean.',
-      category: 'Ocean Cleanup',
-      requestedAmount: '$1,800,000',
-      votes: 892,
-      status: 'Active',
-      impactScore: 88,
-      proposer: '0x2345...6789',
-      endDate: '2024-10-20',
-      daysLeft: 12,
-    },
-    {
-      id: 3,
-      title: 'Amazon Reforestation Project',
-      description: 'Planting 1 million trees to restore degraded areas of the Amazon rainforest.',
-      category: 'Reforestation',
-      requestedAmount: '$3,200,000',
-      votes: 2156,
-      status: 'Passed',
-      impactScore: 95,
-      proposer: '0x3456...7890',
-      endDate: '2024-09-30',
-      daysLeft: 0,
-    },
-    {
-      id: 4,
-      title: 'Carbon Capture Technology',
-      description: 'Developing advanced carbon capture technology for industrial applications.',
-      category: 'Carbon Capture',
-      requestedAmount: '$4,500,000',
-      votes: 543,
-      status: 'Rejected',
-      impactScore: 76,
-      proposer: '0x4567...8901',
-      endDate: '2024-09-25',
-      daysLeft: 0,
-    },
-  ]
-
-  const filteredProposals = proposals.filter(proposal => {
+  // Filter proposals based on search and filter
+  const filteredProposals = proposals?.filter(proposal => {
     const matchesSearch = proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          proposal.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filter === 'all' || proposal.status.toLowerCase() === filter
+    const matchesFilter = filter === 'all' || proposal.status.toLowerCase() === filter.toLowerCase()
     return matchesSearch && matchesFilter
-  })
+  }) || []
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <LoadingSpinner />
+      </div>
+    )
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -146,7 +104,24 @@ const Proposals = () => {
 
       {/* Proposals Grid */}
       <div className="grid gap-6">
-        {filteredProposals.map((proposal) => (
+        {filteredProposals.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-primary-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Proposals Found</h3>
+            <p className="text-gray-600 mb-6">
+              {searchTerm || filter !== 'all' 
+                ? 'Try adjusting your search or filter criteria.'
+                : 'Be the first to create an environmental proposal!'
+              }
+            </p>
+            <Link to="/create" className="btn-primary">
+              Create First Proposal
+            </Link>
+          </div>
+        ) : (
+          filteredProposals.map((proposal) => (
           <div key={proposal.id} className="card hover:shadow-lg transition-shadow">
             <div className="flex flex-col lg:flex-row lg:items-start gap-6">
               {/* Main Content */}
@@ -226,23 +201,9 @@ const Proposals = () => {
               </div>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
-
-      {filteredProposals.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="w-8 h-8 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No proposals found</h3>
-          <p className="text-gray-600 mb-4">
-            Try adjusting your search terms or filters
-          </p>
-          <Link to="/create" className="btn-primary">
-            Create the First Proposal
-          </Link>
-        </div>
-      )}
     </div>
   )
 }

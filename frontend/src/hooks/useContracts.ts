@@ -312,3 +312,152 @@ export const useClaimRewards = () => {
     error
   }
 }
+
+export const useAllProposals = () => {
+  const { data: proposalCount } = useReadContract({
+    address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+    abi: ClimateDAO_ABI,
+    functionName: 'proposalCount',
+  })
+
+  const proposals = []
+  
+  // Fetch all proposals
+  if (proposalCount && proposalCount > 0n) {
+    for (let i = 1n; i <= proposalCount; i++) {
+      const { data: proposalAddress } = useReadContract({
+        address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+        abi: ClimateDAO_ABI,
+        functionName: 'proposals',
+        args: [i],
+      })
+
+      if (proposalAddress) {
+        // Fetch proposal details from the Proposal contract
+        const { data: proposalData } = useReadContract({
+          address: proposalAddress as `0x${string}`,
+          abi: ClimateDAO_ABI, // Assuming Proposal contract has similar ABI
+          functionName: 'getProposalData',
+        })
+
+        if (proposalData) {
+          proposals.push({
+            id: Number(i),
+            address: proposalAddress,
+            ...proposalData,
+            status: 'Active', // This should be determined by checking voting deadline
+          })
+        }
+      }
+    }
+  }
+
+  return {
+    proposals,
+    isLoading: false, // Could be improved with proper loading states
+    totalCount: proposalCount ? Number(proposalCount) : 0
+  }
+}
+
+export const useUserProposals = (userAddress?: `0x${string}`) => {
+  const { proposals } = useAllProposals()
+  
+  const userProposals = proposals?.filter(proposal => 
+    proposal.proposer?.toLowerCase() === userAddress?.toLowerCase()
+  ) || []
+
+  return {
+    userProposals,
+    count: userProposals.length
+  }
+}
+
+export const useUserVotes = (userAddress?: `0x${string}`) => {
+  const { proposals } = useAllProposals()
+  
+  // This would need to be implemented by checking each proposal's voting records
+  // For now, returning empty array as this requires more complex contract interaction
+  const userVotes: any[] = []
+
+  return {
+    userVotes,
+    count: userVotes.length
+  }
+}
+
+export const useProposal = (proposalId: number) => {
+  const { data: proposalAddress } = useReadContract({
+    address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+    abi: ClimateDAO_ABI,
+    functionName: 'proposals',
+    args: [BigInt(proposalId)],
+  })
+
+  const { data: proposalData } = useReadContract({
+    address: proposalAddress as `0x${string}`,
+    abi: ClimateDAO_ABI,
+    functionName: 'getProposalData',
+    query: {
+      enabled: !!proposalAddress,
+    },
+  })
+
+  return {
+    proposal: proposalData ? {
+      id: proposalId,
+      address: proposalAddress,
+      ...proposalData,
+      status: 'Active', // This should be determined by checking voting deadline
+    } : null,
+    isLoading: !proposalData && !!proposalAddress
+  }
+}
+
+export const useVote = () => {
+  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+
+  const vote = async (proposalId: number, choice: number) => {
+    if (!hash) {
+      toast.loading('Casting vote...', { id: 'vote' })
+    }
+
+    try {
+      // Get proposal address first
+      const proposalAddress = await writeContract({
+        address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+        abi: ClimateDAO_ABI,
+        functionName: 'proposals',
+        args: [BigInt(proposalId)],
+      })
+
+      // Cast vote on the proposal
+      await writeContract({
+        address: proposalAddress as `0x${string}`,
+        abi: ClimateDAO_ABI,
+        functionName: 'castVote',
+        args: [BigInt(choice), 1n], // choice and weight (1 token = 1 vote)
+      })
+    } catch (err) {
+      console.error('Voting error:', err)
+      throw err
+    }
+  }
+
+  // Handle transaction status
+  if (isConfirmed) {
+    toast.success('Vote cast successfully!', { id: 'vote' })
+  } else if (error) {
+    toast.error('Vote failed', { id: 'vote' })
+  }
+
+  return {
+    vote,
+    hash,
+    isPending: isPending || isConfirming,
+    isConfirmed,
+    error
+  }
+}
