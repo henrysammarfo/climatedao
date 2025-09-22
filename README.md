@@ -85,13 +85,43 @@ VITE_CONTRACT_ADDRESS=deployed_contract_address
 - **Testing**: Comprehensive test coverage with Hardhat
 - **Deployment**: Automated deployment to XDC Apothem Testnet
 
+## 🔒 Development Guidelines
+
+### Branch Protection Rules
+- **NEVER push directly to `master` branch**
+- Use feature branches for all development
+- Create pull requests for code review
+- Ensure all tests pass before merging
+
+### Git Workflow
+```bash
+# Create feature branch
+git checkout -b feature/your-feature-name
+
+# Make changes and commit
+git add .
+git commit -m "Add your feature"
+
+# Push feature branch
+git push -u origin feature/your-feature-name
+
+# Create pull request on GitHub
+```
+
+### Code Standards
+- TypeScript for type safety
+- ESLint for code quality
+- Comprehensive error handling
+- Security-first approach
+- No hardcoded secrets or API keys
+
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (NEVER work on master)
 3. Make your changes
 4. Add tests for new functionality
-5. Submit a pull request
+5. Submit a pull request for review
 
 ## License
 
