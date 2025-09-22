@@ -1,39 +1,69 @@
 import { ArrowLeft, Calendar, MapPin, Globe, TrendingUp, Users, DollarSign } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useAccount } from 'wagmi'
+import { useProposal, useVote } from '../hooks/useContracts'
+import { useTribes } from '../hooks/useTribes'
+import LoadingSpinner from '../components/LoadingSpinner'
+import toast from 'react-hot-toast'
 
 const ProposalDetail = () => {
   const navigate = useNavigate()
+  const { id } = useParams()
+  const { address } = useAccount()
+  const { proposal, isLoading } = useProposal(id ? parseInt(id) : 0)
+  const { vote, isPending: isVoting } = useVote()
+  const { trackGovernanceAction } = useTribes()
 
-  // Real proposal data - fetched from contract/API
-  const proposal = {
-    id: 1,
-    title: 'Solar Farm in Kenya',
-    description: 'Building a 50MW solar farm to provide clean energy to 100,000 homes in rural Kenya. This project will significantly reduce carbon emissions and provide reliable electricity to underserved communities.',
-    location: 'Kenya, East Africa',
-    category: 'Renewable Energy',
-    requestedAmount: '$2,500,000',
-    duration: 365,
-    website: 'https://kenyasolarproject.com',
-    proposer: '0x1234...5678',
-    status: 'Active',
-    votes: 1247,
-    forVotes: 892,
-    againstVotes: 355,
-    impactScore: 92,
-    co2Reduction: 15000, // tons per year
-    energyGeneration: 87500, // MWh per year
-    jobsCreated: 250,
-    endDate: '2024-10-15',
-    daysLeft: 7,
-    images: [
-      'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800',
-      'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=800',
-    ]
+  const handleVote = async (choice: 'for' | 'against' | 'abstain') => {
+    if (!address) {
+      toast.error('Please connect your wallet first')
+      return
+    }
+
+    if (!proposal) {
+      toast.error('Proposal not found')
+      return
+    }
+
+    try {
+      const voteChoice = choice === 'for' ? 1 : choice === 'against' ? 0 : 2
+      await vote(proposal.id, voteChoice)
+      
+      // Track governance action in Tribes
+      await trackGovernanceAction('vote', {
+        proposalId: proposal.id,
+        choice: choice,
+        impact: 'governance_participation'
+      })
+      
+      toast.success(`Vote cast: ${choice}`)
+    } catch (error) {
+      console.error('Voting error:', error)
+      toast.error('Failed to cast vote')
+    }
   }
 
-  const handleVote = (choice: 'for' | 'against' | 'abstain') => {
-    // TODO: Implement voting logic
-    console.log('Voting:', choice)
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <LoadingSpinner />
+      </div>
+    )
+  }
+
+  if (!proposal) {
+    return (
+      <div className="max-w-6xl mx-auto text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Proposal Not Found</h2>
+        <p className="text-gray-600 mb-6">The proposal you're looking for doesn't exist or has been removed.</p>
+        <button
+          onClick={() => navigate('/proposals')}
+          className="btn-primary"
+        >
+          View All Proposals
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -42,7 +72,7 @@ const ProposalDetail = () => {
       <div className="flex items-center space-x-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -177,29 +207,45 @@ const ProposalDetail = () => {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Voting */}
-          {proposal.status === 'Active' && (
+          {proposal.status === 'Active' && address && (
             <div className="card">
               <h3 className="text-lg font-semibold mb-4">Cast Your Vote</h3>
               <div className="space-y-3">
                 <button
                   onClick={() => handleVote('for')}
-                  className="w-full btn-primary"
+                  disabled={isVoting}
+                  className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Vote For
+                  {isVoting ? 'Voting...' : 'Vote For'}
                 </button>
                 <button
                   onClick={() => handleVote('against')}
-                  className="w-full btn-outline"
+                  disabled={isVoting}
+                  className="w-full btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Vote Against
+                  {isVoting ? 'Voting...' : 'Vote Against'}
                 </button>
                 <button
                   onClick={() => handleVote('abstain')}
-                  className="w-full btn-secondary"
+                  disabled={isVoting}
+                  className="w-full btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Abstain
+                  {isVoting ? 'Voting...' : 'Abstain'}
                 </button>
               </div>
+            </div>
+          )}
+          
+          {proposal.status === 'Active' && !address && (
+            <div className="card">
+              <h3 className="text-lg font-semibold mb-4">Connect Wallet to Vote</h3>
+              <p className="text-gray-600 mb-4">Please connect your wallet to participate in voting.</p>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full btn-primary"
+              >
+                Connect Wallet
+              </button>
             </div>
           )}
 

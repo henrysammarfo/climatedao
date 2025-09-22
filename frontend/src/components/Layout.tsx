@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useDarkMode } from '../hooks/useDarkMode'
+import FaucetButton from './FaucetButton'
 
 interface LayoutProps {
   children: ReactNode
@@ -37,9 +38,9 @@ const Layout = ({ children }: LayoutProps) => {
   const isActive = (href: string) => location.pathname === href
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-dark-800 shadow-sm border-b border-gray-200 dark:border-dark-700">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -60,8 +61,8 @@ const Layout = ({ children }: LayoutProps) => {
                     to={item.href}
                     className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive(item.href)
-                        ? 'text-primary-600 bg-primary-50'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -73,10 +74,13 @@ const Layout = ({ children }: LayoutProps) => {
 
             {/* Wallet Info */}
             <div className="flex items-center space-x-4">
+              {/* Faucet Button */}
+              <FaucetButton />
+              
               {/* Dark Mode Toggle */}
               <button
                 onClick={toggleDarkMode}
-                className="p-2 rounded-lg bg-gray-100 dark:bg-dark-700 hover:bg-gray-200 dark:hover:bg-dark-600 transition-colors"
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 aria-label="Toggle dark mode"
               >
                 {isDarkMode ? (
@@ -87,7 +91,7 @@ const Layout = ({ children }: LayoutProps) => {
               </button>
 
               {isConnected && (
-                <div className="hidden sm:flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-dark-700 rounded-lg">
+                <div className="hidden sm:flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
                   <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {address?.slice(0, 6)}...{address?.slice(-4)}
@@ -121,7 +125,7 @@ const Layout = ({ children }: LayoutProps) => {
 
         {/* Mobile Navigation */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white">
+          <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navigation.map((item) => {
                 const Icon = item.icon
@@ -132,8 +136,8 @@ const Layout = ({ children }: LayoutProps) => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium transition-colors ${
                       isActive(item.href)
-                        ? 'text-primary-600 bg-primary-50'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -152,9 +156,9 @@ const Layout = ({ children }: LayoutProps) => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-16">
+      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-gray-600">
+          <div className="text-center text-gray-600 dark:text-gray-300">
             <p>&copy; 2024 ClimateDAO. Built on XDC Network with AI-powered impact assessment.</p>
           </div>
         </div>

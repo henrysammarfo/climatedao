@@ -8,13 +8,18 @@ import {
   Globe,
   Zap
 } from 'lucide-react'
+import { useDAOStats } from '../hooks/useContracts'
+import { useTribes } from '../hooks/useTribes'
 
 const Home = () => {
+  const { totalProposals, formattedFunds } = useDAOStats()
+  const { leaderboard } = useTribes()
+  
   const stats = [
-    { label: 'Active Proposals', value: '12', icon: TrendingUp },
-    { label: 'Community Members', value: '2,847', icon: Users },
-    { label: 'Funds Raised', value: '$1.2M', icon: DollarSign },
-    { label: 'Projects Funded', value: '8', icon: Leaf },
+    { label: 'Active Proposals', value: totalProposals?.toString() || '0', icon: TrendingUp },
+    { label: 'Community Members', value: leaderboard.length.toString(), icon: Users },
+    { label: 'Funds Raised', value: `$${formattedFunds}`, icon: DollarSign },
+    { label: 'Projects Funded', value: '0', icon: Leaf }, // Will be updated when proposals are executed
   ]
 
   const features = [
@@ -35,38 +40,8 @@ const Home = () => {
     },
   ]
 
-  const recentProposals = [
-    {
-      id: 1,
-      title: 'Solar Farm in Kenya',
-      description: 'Building a 50MW solar farm to provide clean energy to 100,000 homes.',
-      category: 'Renewable Energy',
-      requestedAmount: '$2.5M',
-      votes: 1247,
-      status: 'Active',
-      impactScore: 92,
-    },
-    {
-      id: 2,
-      title: 'Ocean Plastic Cleanup',
-      description: 'Deploying autonomous drones to clean plastic waste from the Pacific Ocean.',
-      category: 'Ocean Cleanup',
-      requestedAmount: '$1.8M',
-      votes: 892,
-      status: 'Active',
-      impactScore: 88,
-    },
-    {
-      id: 3,
-      title: 'Reforestation in Amazon',
-      description: 'Planting 1 million trees to restore degraded areas of the Amazon rainforest.',
-      category: 'Reforestation',
-      requestedAmount: '$3.2M',
-      votes: 2156,
-      status: 'Passed',
-      impactScore: 95,
-    },
-  ]
+  // Remove mock proposals - will be replaced with real data from contracts
+  const recentProposals: any[] = []
 
   return (
     <div className="space-y-16">
@@ -134,49 +109,62 @@ const Home = () => {
           </Link>
         </div>
         
-        <div className="grid md:grid-cols-3 gap-6">
-          {recentProposals.map((proposal) => (
-            <div key={proposal.id} className="card hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <span className="px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded-full">
-                  {proposal.category}
-                </span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  proposal.status === 'Active' 
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-green-100 text-green-800'
-                }`}>
-                  {proposal.status}
-                </span>
-              </div>
-              
-              <h3 className="text-lg font-semibold mb-2">{proposal.title}</h3>
-              <p className="text-gray-600 text-sm mb-4">{proposal.description}</p>
-              
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Requested:</span>
-                  <span className="font-medium">{proposal.requestedAmount}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Votes:</span>
-                  <span className="font-medium">{proposal.votes.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Impact Score:</span>
-                  <span className="font-medium text-primary-600">{proposal.impactScore}/100</span>
-                </div>
-              </div>
-              
-              <Link 
-                to={`/proposals/${proposal.id}`}
-                className="btn-primary w-full text-center"
-              >
-                View Details
-              </Link>
+        {recentProposals.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="w-8 h-8 text-primary-600" />
             </div>
-          ))}
-        </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Proposals Yet</h3>
+            <p className="text-gray-600 mb-6">Be the first to create an environmental proposal!</p>
+            <Link to="/create" className="btn-primary">
+              Create First Proposal
+            </Link>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-6">
+            {recentProposals.map((proposal) => (
+              <div key={proposal.id} className="card hover:shadow-lg transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <span className="px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded-full">
+                    {proposal.category}
+                  </span>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    proposal.status === 'Active' 
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {proposal.status}
+                  </span>
+                </div>
+                
+                <h3 className="text-lg font-semibold mb-2">{proposal.title}</h3>
+                <p className="text-gray-600 text-sm mb-4">{proposal.description}</p>
+                
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Requested:</span>
+                    <span className="font-medium">{proposal.requestedAmount}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Votes:</span>
+                    <span className="font-medium">{proposal.votes.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Impact Score:</span>
+                    <span className="font-medium text-primary-600">{proposal.impactScore}/100</span>
+                  </div>
+                </div>
+                
+                <Link 
+                  to={`/proposals/${proposal.id}`}
+                  className="btn-primary w-full text-center"
+                >
+                  View Details
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* CTA Section */}
