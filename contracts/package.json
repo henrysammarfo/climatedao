@@ -1,0 +1,25 @@
+{
+  "name": "climatedao-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for ClimateDAO",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.ts --network apothem",
+    "verify": "hardhat verify --network apothem",
+    "coverage": "hardhat coverage"
+  },
+  "keywords": ["blockchain", "dao", "climate", "xdc"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.22.10",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "ethers": "^6.13.2"
+  }
+}

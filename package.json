@@ -1,0 +1,29 @@
+{
+  "name": "climatedao",
+  "version": "1.0.0",
+  "description": "AI-powered on-chain DAO for funding and governing environmental projects",
+  "private": true,
+  "workspaces": [
+    "contracts",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:contracts && npm run install:frontend",
+    "install:contracts": "cd contracts && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "build": "npm run build:contracts && npm run build:frontend",
+    "build:contracts": "cd contracts && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "npm run test:contracts",
+    "test:contracts": "cd contracts && npm test",
+    "deploy": "cd contracts && npm run deploy",
+    "dev": "cd frontend && npm run dev",
+    "compile": "cd contracts && npm run compile"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
