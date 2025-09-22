@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useTribes } from '../hooks/useTribes'
 import { Badge } from '../services/tribesService'
+import toast from 'react-hot-toast'
 
 const TribesDashboard = () => {
   const { 
@@ -61,7 +62,15 @@ const TribesDashboard = () => {
   }
 
   const handleCreateToken = async () => {
-    await createClimateDAOToken()
+    try {
+      const txHash = await createClimateDAOToken()
+      if (txHash) {
+        toast.success(`Token created successfully! Transaction: ${txHash}`)
+      }
+    } catch (error: any) {
+      console.error('Token creation failed:', error)
+      toast.error(error.message || 'Failed to create token. Please try again.')
+    }
   }
 
   if (isLoading) {
@@ -391,14 +400,33 @@ const TribesDashboard = () => {
                 </div>
               )}
 
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">Token Features</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• ERC20 standard token</li>
-                  <li>• Used for governance voting</li>
-                  <li>• Access to token-gated events</li>
-                  <li>• Convertible from community points</li>
-                  <li>• Tradeable on decentralized exchanges</li>
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">What is the CLIMATE Token?</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                  The CLIMATE token is the governance and utility token for ClimateDAO, enabling community-driven environmental action.
+                </p>
+                <h5 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Token Features:</h5>
+                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                  <li>• 🗳️ <strong>Governance Voting:</strong> Vote on environmental proposals</li>
+                  <li>• 💰 <strong>Staking Rewards:</strong> Earn rewards for long-term commitment</li>
+                  <li>• 🎫 <strong>Token-Gated Access:</strong> Access exclusive events and content</li>
+                  <li>• 🔄 <strong>Point Conversion:</strong> Convert Tribes XP to CLIMATE tokens</li>
+                  <li>• 💱 <strong>Trading:</strong> Tradeable on decentralized exchanges</li>
+                  <li>• 🌱 <strong>Environmental Impact:</strong> Each token represents climate action</li>
+                </ul>
+              </div>
+
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">Troubleshooting Token Creation</h4>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-2">
+                  If token creation fails, try these steps:
+                </p>
+                <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                  <li>• Ensure you're connected to XDC Apothem Testnet</li>
+                  <li>• Make sure you have XDC tokens for gas fees</li>
+                  <li>• Check that you're a member of the ClimateDAO tribe</li>
+                  <li>• Verify your wallet has the necessary permissions</li>
+                  <li>• Try refreshing the page and reconnecting your wallet</li>
                 </ul>
               </div>
             </div>

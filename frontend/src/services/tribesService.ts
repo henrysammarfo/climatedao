@@ -525,16 +525,32 @@ export class TribesIntegration {
         await this.initialize()
       }
 
+      // Check if tribe exists first
+      if (!this.tribeId) {
+        throw new Error('Tribe not initialized. Please join the ClimateDAO tribe first.')
+      }
+
       try {
         const txHash = await (this.sdk!.points as any).createTribeToken({
           tribeId: this.tribeId,
           name: 'ClimateDAO Token',
-          symbol: 'CLIMATE'
+          symbol: 'CLIMATE',
+          description: 'Governance token for ClimateDAO ecosystem',
+          decimals: 18,
+          totalSupply: '1000000000000000000000000' // 1M tokens
         })
         return txHash
       } catch (error) {
         console.log('Could not create token through SDK:', error)
-        throw error
+        
+        // Provide helpful error message
+        if (error.message?.includes('tribe')) {
+          throw new Error('Please ensure you are a member of the ClimateDAO tribe and have the necessary permissions.')
+        } else if (error.message?.includes('network')) {
+          throw new Error('Network error. Please check your connection and try again.')
+        } else {
+          throw new Error('Failed to create token. Please try again or contact support.')
+        }
       }
     } catch (error) {
       console.error('Failed to create ClimateDAO token:', error)
