@@ -17,7 +17,7 @@ export const useTribes = () => {
     setIsLoading(true)
     try {
       // Connect wallet to Tribes SDK first
-      await TribesIntegration.initialize()
+      await TribesIntegration.connectWallet()
       
       const profile = await TribesIntegration.initializeUser(address, username)
       setUserProfile(profile)
@@ -132,8 +132,7 @@ export const useTribes = () => {
     if (!address) return null
 
     try {
-      // Placeholder implementation
-      const result = { tokens: points / 100, txHash: 'placeholder' }
+      const result = await TribesIntegration.convertPointsToTokens(address, points)
       toast.success(`Converted ${points} points to tokens!`)
       await loadUserProfile() // Refresh profile
       return result
@@ -147,8 +146,7 @@ export const useTribes = () => {
   // Get ClimateDAO tribe token address
   const getClimateDAOTokenAddress = useCallback(async () => {
     try {
-      // Return the deployed contract address from environment
-      return (import.meta as any).env?.VITE_CLIMATE_TOKEN_ADDRESS || null
+      return await TribesIntegration.getClimateDAOTokenAddress()
     } catch (error) {
       console.error('Failed to get ClimateDAO token address:', error)
       return null
@@ -158,8 +156,7 @@ export const useTribes = () => {
   // Create ClimateDAO tribe token
   const createClimateDAOToken = useCallback(async () => {
     try {
-      // Placeholder implementation
-      const txHash = 'placeholder_tx_hash'
+      const txHash = await TribesIntegration.createClimateDAOToken()
       toast.success('ClimateDAO tribe token created successfully!')
       return txHash
     } catch (error) {
