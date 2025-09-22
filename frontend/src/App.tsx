@@ -8,9 +8,11 @@ import CreateProposal from './pages/CreateProposal'
 import ProposalDetail from './pages/ProposalDetail'
 import Dashboard from './pages/Dashboard'
 import ConnectWallet from './components/ConnectWallet'
+import { useDarkMode } from './hooks/useDarkMode'
 
 function App() {
   const { isConnected } = useAccount()
+  useDarkMode() // Initialize dark mode
 
   if (!isConnected) {
     return <ConnectWallet />

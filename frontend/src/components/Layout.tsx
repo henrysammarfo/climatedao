@@ -9,9 +9,12 @@ import {
   Wallet,
   Leaf,
   Menu,
-  X
+  X,
+  Sun,
+  Moon
 } from 'lucide-react'
 import { useState } from 'react'
+import { useDarkMode } from '../hooks/useDarkMode'
 
 interface LayoutProps {
   children: ReactNode
@@ -22,6 +25,7 @@ const Layout = ({ children }: LayoutProps) => {
   const { disconnect } = useDisconnect()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { isDarkMode, toggleDarkMode } = useDarkMode()
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -33,9 +37,9 @@ const Layout = ({ children }: LayoutProps) => {
   const isActive = (href: string) => location.pathname === href
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-dark-800 shadow-sm border-b border-gray-200 dark:border-dark-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -69,10 +73,23 @@ const Layout = ({ children }: LayoutProps) => {
 
             {/* Wallet Info */}
             <div className="flex items-center space-x-4">
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-dark-700 hover:bg-gray-200 dark:hover:bg-dark-600 transition-colors"
+                aria-label="Toggle dark mode"
+              >
+                {isDarkMode ? (
+                  <Sun className="w-5 h-5 text-yellow-500" />
+                ) : (
+                  <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                )}
+              </button>
+
               {isConnected && (
-                <div className="hidden sm:flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
-                  <Wallet className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">
+                <div className="hidden sm:flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-dark-700 rounded-lg">
+                  <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {address?.slice(0, 6)}...{address?.slice(-4)}
                   </span>
                 </div>

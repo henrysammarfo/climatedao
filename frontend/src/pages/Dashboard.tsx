@@ -10,15 +10,18 @@ import {
 } from 'lucide-react'
 import TribesDashboard from '../components/TribesDashboard'
 import { useTribes } from '../hooks/useTribes'
+import { useStakingInfo, useDAOStats } from '../hooks/useContracts'
 
 const Dashboard = () => {
   const { userProfile } = useTribes()
+  const { formattedStaked, formattedRewards } = useStakingInfo()
+  const { formattedFunds } = useDAOStats()
   
   const stats = [
     { label: 'Your Proposals', value: '3', icon: FileText, change: '+1 this month' },
     { label: 'Votes Cast', value: '47', icon: Users, change: '+12 this week' },
     { label: 'Contribution Score', value: userProfile?.xp.toLocaleString() || '0', icon: Award, change: `Level ${userProfile?.level || 1}` },
-    { label: 'Tokens Staked', value: '500', icon: DollarSign, change: 'Staking rewards: 2.5%' },
+    { label: 'Tokens Staked', value: formattedStaked, icon: DollarSign, change: `Rewards: ${formattedRewards} CLIMATE` },
   ]
 
   const recentActivity = [
@@ -191,7 +194,7 @@ const Dashboard = () => {
           </div>
           <div className="text-center p-6 bg-purple-50 rounded-lg">
             <Target className="w-8 h-8 text-purple-600 mx-auto mb-3" />
-            <div className="text-2xl font-bold text-purple-600">$50K</div>
+            <div className="text-2xl font-bold text-purple-600">${formattedFunds}</div>
             <div className="text-sm text-gray-600">Total Donated</div>
             <div className="text-xs text-gray-500 mt-1">To environmental projects</div>
           </div>

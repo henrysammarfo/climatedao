@@ -1,14 +1,21 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAccount } from 'wagmi'
 import { ArrowLeft, Upload, Sparkles, Brain, TrendingUp, Users, DollarSign } from 'lucide-react'
 import { useAI } from '../hooks/useAI'
+import { useCreateProposal } from '../hooks/useContracts'
+import { useTribes } from '../hooks/useTribes'
 import { ProposalData } from '../services/aiService'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { validateProposalData, sanitizeInput } from '../utils/security'
+import toast from 'react-hot-toast'
 
 const CreateProposal = () => {
   const navigate = useNavigate()
+  const { address } = useAccount()
   const { isAnalyzing, analysis, analyzeProposal } = useAI()
+  const { createProposal, isPending: isCreating } = useCreateProposal()
+  const { trackGovernanceAction } = useTribes()
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -29,8 +36,13 @@ const CreateProposal = () => {
     'Other'
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!address) {
+      toast.error('Please connect your wallet first')
+      return
+    }
     
     // Validate and sanitize input
     const sanitizedData = {
@@ -45,13 +57,36 @@ const CreateProposal = () => {
 
     const validation = validateProposalData(sanitizedData)
     if (!validation.isValid) {
-      alert('Please fix the following errors:\n' + validation.errors.join('\n'))
+      toast.error('Please fix the following errors:\n' + validation.errors.join('\n'))
       return
     }
 
-    // TODO: Implement proposal creation logic
-    console.log('Creating proposal:', sanitizedData)
-    navigate('/proposals')
+    try {
+      // Create proposal data for contract
+      const proposalData = {
+        title: sanitizedData.title,
+        description: sanitizedData.description,
+        location: sanitizedData.location,
+        category: categories.indexOf(sanitizedData.category),
+        requestedAmount: BigInt(Math.floor(sanitizedData.requestedAmount * 1e18)), // Convert to wei
+        duration: BigInt(sanitizedData.duration * 24 * 60 * 60), // Convert days to seconds
+        website: sanitizedData.website,
+        images: [] // TODO: Handle image uploads
+      }
+
+      // Create proposal on blockchain
+      await createProposal(address, proposalData)
+      
+      // Track governance action in Tribes
+      if (address) {
+        await trackGovernanceAction('proposal', undefined)
+      }
+      
+      navigate('/proposals')
+    } catch (error) {
+      console.error('Failed to create proposal:', error)
+      toast.error('Failed to create proposal')
+    }
   }
 
   const handleAnalyze = async () => {
@@ -243,8 +278,19 @@ const CreateProposal = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  Submit Proposal
+                <button 
+                  type="submit" 
+                  disabled={isCreating}
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreating ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      Creating Proposal...
+                    </>
+                  ) : (
+                    'Submit Proposal'
+                  )}
                 </button>
               </div>
             </div>

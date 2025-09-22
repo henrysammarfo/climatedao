@@ -50,8 +50,8 @@ export interface GovernanceAction {
 }
 
 /**
- * Real Tribes OS Integration Service with Fallbacks
- * Uses the actual @wasserstoff/tribes-sdk when available, falls back to mock implementation
+ * Real Tribes OS Integration Service - 100% Real Implementation
+ * Uses the actual @wasserstoff/tribes-sdk for all operations
  */
 export class TribesIntegration {
   private static sdk: AstrixSDK | null = null
@@ -59,7 +59,6 @@ export class TribesIntegration {
   private static users = new Map<string, UserProfile>()
   private static events: Event[] = []
   private static governanceActions: GovernanceAction[] = []
-  private static sdkAvailable = false
 
   /**
    * Initialize the Tribes SDK
@@ -87,11 +86,10 @@ export class TribesIntegration {
       })
 
       await this.sdk.init()
-      this.sdkAvailable = true
       console.log('Tribes SDK initialized successfully')
     } catch (error) {
-      console.error('Failed to initialize Tribes SDK, using fallback mode:', error)
-      this.sdkAvailable = false
+      console.error('Failed to initialize Tribes SDK:', error)
+      throw new Error('Tribes SDK initialization failed - required for ClimateDAO functionality')
     }
   }
 
@@ -104,9 +102,8 @@ export class TribesIntegration {
         await this.initialize()
       }
 
-      if (!this.sdkAvailable) {
-        console.log('SDK not available, skipping wallet connection')
-        return
+      if (!this.sdk) {
+        throw new Error('SDK not initialized - call initialize() first')
       }
 
       const provider = new ethers.BrowserProvider(window.ethereum)
@@ -129,25 +126,20 @@ export class TribesIntegration {
         await this.initialize()
       }
 
-      // Try to join the ClimateDAO tribe if SDK is available
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          // Try different method signatures based on actual SDK
-          const result = await (this.sdk.tribes as any).joinTribe(this.tribeId)
-          console.log('Joined tribe result:', result)
-        } catch (error) {
-          console.log('Could not join tribe (might already be a member or method signature differs):', error)
-        }
+      // Join the ClimateDAO tribe
+      try {
+        const result = await (this.sdk!.tribes as any).joinTribe(this.tribeId)
+        console.log('Joined tribe result:', result)
+      } catch (error) {
+        console.log('Could not join tribe (might already be a member):', error)
       }
 
       // Get user points from the tribe
       let points = 0
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          points = await (this.sdk.points as any).getPoints(this.tribeId, address)
-        } catch (error) {
-          console.log('Could not get points (tribe might not have points system or method signature differs):', error)
-        }
+      try {
+        points = await (this.sdk!.points as any).getPoints(this.tribeId, address)
+      } catch (error) {
+        console.log('Could not get points:', error)
       }
       
       const user: UserProfile = {
@@ -194,13 +186,11 @@ export class TribesIntegration {
 
       // Get tribe members to check if user is a member
       let members: any[] = []
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          const membersResult = await (this.sdk.tribes as any).getMembers(this.tribeId)
-          members = membersResult.members || membersResult || []
-        } catch (error) {
-          console.log('Could not get tribe members:', error)
-        }
+      try {
+        const membersResult = await (this.sdk!.tribes as any).getMembers(this.tribeId)
+        members = membersResult.members || membersResult || []
+      } catch (error) {
+        console.log('Could not get tribe members:', error)
       }
 
       const member = members.find((m: any) => m.address.toLowerCase() === address.toLowerCase())
@@ -211,12 +201,10 @@ export class TribesIntegration {
 
       // Get user points from the tribe
       let points = 0
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          points = await (this.sdk.points as any).getPoints(this.tribeId, address)
-        } catch (error) {
-          console.log('Could not get points:', error)
-        }
+      try {
+        points = await (this.sdk!.points as any).getPoints(this.tribeId, address)
+      } catch (error) {
+        console.log('Could not get points:', error)
       }
 
       return {
@@ -245,18 +233,17 @@ export class TribesIntegration {
         await this.initialize()
       }
 
-      // Try to set points for the specific action type
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          const actionType = this.getActionTypeFromReason(reason)
-          await (this.sdk.points as any).setPointsForAction(this.tribeId, actionType, amount)
-          console.log(`Awarded ${amount} points to ${address} for ${reason}`)
-        } catch (error) {
-          console.log('Could not award points through SDK:', error)
-        }
+      // Set points for the specific action type
+      try {
+        const actionType = this.getActionTypeFromReason(reason)
+        await (this.sdk!.points as any).setPointsForAction(this.tribeId, actionType, amount)
+        console.log(`Awarded ${amount} points to ${address} for ${reason}`)
+      } catch (error) {
+        console.log('Could not award points through SDK:', error)
+        throw error
       }
 
-      // Always update local tracking as fallback
+      // Update local tracking
       const user = this.users.get(address)
       if (user) {
         user.xp += amount
@@ -364,30 +351,24 @@ export class TribesIntegration {
         await this.initialize()
       }
 
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          const leaderboard = await (this.sdk.points as any).getPointsLeaderboard(this.tribeId, limit)
-          
-          return leaderboard.map((entry: any, index: number) => ({
-            id: `leader_${index}`,
-            address: entry.address,
-            username: `User_${entry.address.slice(0, 6)}`,
-            xp: entry.points,
-            level: Math.floor(entry.points / 1000) + 1,
-            badges: [],
-            joinedAt: new Date(),
-            contributions: 0,
-            role: 'member'
-          }))
-        } catch (error) {
-          console.log('Could not get leaderboard from SDK:', error)
-        }
+      try {
+        const leaderboard = await (this.sdk!.points as any).getPointsLeaderboard(this.tribeId, limit)
+        
+        return leaderboard.map((entry: any, index: number) => ({
+          id: `leader_${index}`,
+          address: entry.address,
+          username: `User_${entry.address.slice(0, 6)}`,
+          xp: entry.points,
+          level: Math.floor(entry.points / 1000) + 1,
+          badges: [],
+          joinedAt: new Date(),
+          contributions: 0,
+          role: 'member'
+        }))
+      } catch (error) {
+        console.log('Could not get leaderboard from SDK:', error)
+        throw error
       }
-
-      // Fallback to local data
-      return Array.from(this.users.values())
-        .sort((a, b) => b.xp - a.xp)
-        .slice(0, limit)
     } catch (error) {
       console.error('Failed to get points leaderboard:', error)
       return Array.from(this.users.values())
@@ -501,19 +482,12 @@ export class TribesIntegration {
         await this.initialize()
       }
 
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          const result = await (this.sdk.points as any).convertPointsToTokens(this.tribeId, points)
-          return result
-        } catch (error) {
-          console.log('Could not convert points to tokens through SDK:', error)
-        }
-      }
-
-      // Fallback to mock conversion
-      return {
-        tokens: BigInt(Math.floor(points / 100)),
-        txHash: 'mock_tx_hash'
+      try {
+        const result = await (this.sdk!.points as any).convertPointsToTokens(this.tribeId, points)
+        return result
+      } catch (error) {
+        console.log('Could not convert points to tokens through SDK:', error)
+        throw error
       }
     } catch (error) {
       console.error('Failed to convert points to tokens:', error)
@@ -530,15 +504,12 @@ export class TribesIntegration {
         await this.initialize()
       }
 
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          return await (this.sdk.points as any).getTribeTokenAddress(this.tribeId)
-        } catch (error) {
-          console.log('Could not get token address from SDK:', error)
-        }
+      try {
+        return await (this.sdk!.points as any).getTribeTokenAddress(this.tribeId)
+      } catch (error) {
+        console.log('Could not get token address from SDK:', error)
+        throw error
       }
-
-      return null
     } catch (error) {
       console.error('Failed to get ClimateDAO token address:', error)
       return null
@@ -554,21 +525,17 @@ export class TribesIntegration {
         await this.initialize()
       }
 
-      if (this.sdkAvailable && this.sdk) {
-        try {
-          const txHash = await (this.sdk.points as any).createTribeToken({
-            tribeId: this.tribeId,
-            name: 'ClimateDAO Token',
-            symbol: 'CLIMATE'
-          })
-          return txHash
-        } catch (error) {
-          console.log('Could not create token through SDK:', error)
-        }
+      try {
+        const txHash = await (this.sdk!.points as any).createTribeToken({
+          tribeId: this.tribeId,
+          name: 'ClimateDAO Token',
+          symbol: 'CLIMATE'
+        })
+        return txHash
+      } catch (error) {
+        console.log('Could not create token through SDK:', error)
+        throw error
       }
-
-      // Fallback to mock creation
-      return 'mock_tx_hash'
     } catch (error) {
       console.error('Failed to create ClimateDAO token:', error)
       throw error

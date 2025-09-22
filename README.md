@@ -71,8 +71,10 @@ climatedao/
 - Explorer: https://explorer.apothem.network
 
 **Frontend:**
-- Built and ready for deployment to Vercel/Netlify
+- **Live URL**: https://frontend-c4sb6trvl-teamtitanlink.vercel.app
+- **Vercel Dashboard**: https://vercel.com/teamtitanlink/frontend
 - Environment variables configured for live contracts
+- Production build optimized and deployed
 
 ## Environment Variables
 
@@ -86,9 +88,9 @@ XDC_RPC_URL=https://rpc.apothem.network
 
 ### frontend/.env
 ```
-VITE_HUGGINGFACE_API_KEY=your_huggingface_api_key
-VITE_TRIBES_API_KEY=your_tribes_api_key
-VITE_CONTRACT_ADDRESS=deployed_contract_address
+VITE_HF_API_KEY=your_huggingface_api_key
+VITE_CLIMATE_TOKEN_ADDRESS=0x41d87298B54d329872c29ec385367cD4C404e8e6
+VITE_CLIMATE_DAO_ADDRESS=0xfD2CFC86e06c54d1ffe9B503391d91452a8Fd02D
 ```
 
 ## Development
@@ -127,6 +129,19 @@ git push -u origin feature/your-feature-name
 - Comprehensive error handling
 - Security-first approach
 - No hardcoded secrets or API keys
+
+## Hackathon Submission
+
+### DoraHacks Submission
+1. Visit: https://dorahacks.io/hackathon/tribes
+2. Submit ClimateDAO as your project
+3. Include live URL: https://frontend-c4sb6trvl-teamtitanlink.vercel.app
+4. Add contract addresses and GitHub repository
+
+### Tribes Proposal
+1. Use the live application to create a governance proposal
+2. Or visit Tribes dashboard to submit ClimateDAO as a community proposal
+3. Tag @tribes_astrix on social media for visibility
 
 ## Contributing
 
