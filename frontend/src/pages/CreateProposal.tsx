@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAccount } from 'wagmi'
-import { ArrowLeft, Upload, Sparkles, Brain, TrendingUp, Users, DollarSign } from 'lucide-react'
+import { useAccount, useSwitchChain } from 'wagmi'
+import { ArrowLeft, Upload, Sparkles, Brain, TrendingUp, Users, DollarSign, AlertTriangle } from 'lucide-react'
 import { useAI } from '../hooks/useAI'
 import { useCreateProposal } from '../hooks/useContracts'
 import { useTribes } from '../hooks/useTribes'
@@ -12,10 +12,12 @@ import toast from 'react-hot-toast'
 
 const CreateProposal = () => {
   const navigate = useNavigate()
-  const { address } = useAccount()
+  const { address, chainId } = useAccount()
+  const { switchChain } = useSwitchChain()
   const { isAnalyzing, analysis, analyzeProposal } = useAI()
   const { createProposal, isPending: isCreating } = useCreateProposal()
   const { trackGovernanceAction } = useTribes()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,6 +27,7 @@ const CreateProposal = () => {
     duration: '',
     website: '',
   })
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
 
   const categories = [
     'Renewable Energy',
@@ -35,6 +38,39 @@ const CreateProposal = () => {
     'Climate Education',
     'Other'
   ]
+
+  // Check if user is on correct network
+  const isCorrectNetwork = chainId === 51 // XDC Apothem Testnet
+
+  const handleSwitchNetwork = async () => {
+    try {
+      await switchChain({ chainId: 51 })
+      toast.success('Switched to XDC Apothem Testnet')
+    } catch (error) {
+      console.error('Failed to switch network:', error)
+      toast.error('Failed to switch network. Please switch manually to XDC Apothem Testnet.')
+    }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const validFiles = files.filter(file => {
+      const isValidType = file.type.startsWith('image/')
+      const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB
+      return isValidType && isValidSize
+    })
+
+    if (validFiles.length !== files.length) {
+      toast.error('Some files were rejected. Only images under 10MB are allowed.')
+    }
+
+    setUploadedFiles(prev => [...prev, ...validFiles])
+    toast.success(`${validFiles.length} file(s) uploaded successfully`)
+  }
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -116,6 +152,47 @@ const CreateProposal = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {/* Wallet Connection Warning */}
+      {!address && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-600" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Wallet Not Connected
+              </h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                Please connect your wallet to create proposals and participate in governance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Network Warning */}
+      {address && !isCorrectNetwork && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Wrong Network Detected
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                You're connected to {chainId === 1 ? 'Ethereum Mainnet' : `Network ${chainId}`}. 
+                Please switch to XDC Apothem Testnet to create proposals.
+              </p>
+            </div>
+            <button
+              onClick={handleSwitchNetwork}
+              className="btn-primary text-sm"
+            >
+              Switch Network
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
@@ -249,18 +326,51 @@ const CreateProposal = () => {
                 <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 mb-2">Upload project images</p>
                 <p className="text-sm text-gray-500">PNG, JPG up to 10MB each</p>
-                <button type="button" className="btn-outline mt-4">
+                <button 
+                  type="button" 
+                  className="btn-outline mt-4"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   Choose Files
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
               </div>
+              
+              {/* Display uploaded files */}
+              {uploadedFiles.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Uploaded Files:</h3>
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-sm text-gray-600">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between">
               <button
                 type="button"
                 onClick={handleAnalyze}
-                disabled={isAnalyzing}
-                className="btn-outline flex items-center"
+                disabled={isAnalyzing || !address || !isCorrectNetwork}
+                className="btn-outline flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? (
                   <LoadingSpinner size="sm" className="mr-2" />
@@ -280,7 +390,7 @@ const CreateProposal = () => {
                 </button>
                 <button 
                   type="submit" 
-                  disabled={isCreating}
+                  disabled={isCreating || !address || !isCorrectNetwork}
                   className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isCreating ? (

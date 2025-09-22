@@ -544,9 +544,10 @@ export class TribesIntegration {
         console.log('Could not create token through SDK:', error)
         
         // Provide helpful error message
-        if (error.message?.includes('tribe')) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        if (errorMessage.includes('tribe')) {
           throw new Error('Please ensure you are a member of the ClimateDAO tribe and have the necessary permissions.')
-        } else if (error.message?.includes('network')) {
+        } else if (errorMessage.includes('network')) {
           throw new Error('Network error. Please check your connection and try again.')
         } else {
           throw new Error('Failed to create token. Please try again or contact support.')
