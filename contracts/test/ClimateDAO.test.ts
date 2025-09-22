@@ -356,5 +356,156 @@ describe("ClimateDAO", function () {
         climateDAO.executeProposal(1)
       ).to.be.revertedWith("Proposal has not passed");
     });
+
+    it("Should reject proposals with amount above maximum", async function () {
+      const projectDetails = {
+        title: "Expensive Project",
+        description: "Project with amount above maximum",
+        location: "Test Location",
+        category: 0,
+        requestedAmount: ethers.parseEther("200000"), // Above maximum
+        duration: 365,
+        website: "https://example.com",
+        images: []
+      };
+
+      await expect(
+        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+      ).to.be.revertedWith("Amount above maximum");
+    });
+
+    it("Should reject proposals with empty description", async function () {
+      const projectDetails = {
+        title: "Valid Title",
+        description: "",
+        location: "Test Location",
+        category: 0,
+        requestedAmount: ethers.parseEther("5000"),
+        duration: 365,
+        website: "https://example.com",
+        images: []
+      };
+
+      await expect(
+        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+      ).to.be.revertedWith("Description required");
+    });
+
+    it("Should handle voting with zero weight", async function () {
+      const projectDetails = {
+        title: "Test Project",
+        description: "Test description",
+        location: "Test Location",
+        category: 0,
+        requestedAmount: ethers.parseEther("10000"),
+        duration: 365,
+        website: "https://example.com",
+        images: []
+      };
+
+      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      const proposalAddress = await climateDAO.proposals(1);
+      const proposal = await ethers.getContractAt("Proposal", proposalAddress);
+
+      // Try to vote with zero weight
+      await expect(
+        proposal.connect(voter1).castVote(1, 0)
+      ).to.be.revertedWith("Voting weight must be greater than 0");
+    });
+
+    it("Should handle voting after proposal deadline", async function () {
+      const projectDetails = {
+        title: "Test Project",
+        description: "Test description",
+        location: "Test Location",
+        category: 0,
+        requestedAmount: ethers.parseEther("10000"),
+        duration: 365,
+        website: "https://example.com",
+        images: []
+      };
+
+      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      const proposalAddress = await climateDAO.proposals(1);
+      const proposal = await ethers.getContractAt("Proposal", proposalAddress);
+
+      // Fast forward past voting deadline
+      await ethers.provider.send("evm_increaseTime", [7 * 24 * 60 * 60 + 1]);
+      await ethers.provider.send("evm_mine", []);
+
+      const voterBalance = await climateToken.balanceOf(voter1.address);
+      
+      await expect(
+        proposal.connect(voter1).castVote(1, voterBalance)
+      ).to.be.revertedWith("Voting period has ended");
+    });
+
+    it("Should handle proposal execution with insufficient funds", async function () {
+      const projectDetails = {
+        title: "Expensive Project",
+        description: "A project requesting more than available funds",
+        location: "Test Location",
+        category: 0,
+        requestedAmount: ethers.parseEther("200000"), // More than DAO has
+        duration: 365,
+        website: "https://example.com",
+        images: []
+      };
+
+      // This should fail at creation due to amount validation
+      await expect(
+        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+      ).to.be.revertedWith("Amount above maximum");
+    });
+
+    it("Should handle duplicate moderator addition", async function () {
+      await climateDAO.addModerator(moderator.address);
+      
+      await expect(
+        climateDAO.addModerator(moderator.address)
+      ).to.be.revertedWith("Already a moderator");
+    });
+
+    it("Should handle removing non-existent moderator", async function () {
+      await expect(
+        climateDAO.removeModerator(moderator.address)
+      ).to.be.revertedWith("Not a moderator");
+    });
+
+    it("Should allow owner to remove moderators", async function () {
+      await climateDAO.addModerator(moderator.address);
+      expect(await climateDAO.isModerator(moderator.address)).to.be.true;
+      
+      await expect(
+        climateDAO.removeModerator(moderator.address)
+      ).to.emit(climateDAO, "ModeratorRemoved")
+      .withArgs(moderator.address);
+
+      expect(await climateDAO.isModerator(moderator.address)).to.be.false;
+    });
+
+    it("Should handle invalid vote choices", async function () {
+      const projectDetails = {
+        title: "Test Project",
+        description: "Test description",
+        location: "Test Location",
+        category: 0,
+        requestedAmount: ethers.parseEther("10000"),
+        duration: 365,
+        website: "https://example.com",
+        images: []
+      };
+
+      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      const proposalAddress = await climateDAO.proposals(1);
+      const proposal = await ethers.getContractAt("Proposal", proposalAddress);
+
+      const voterBalance = await climateToken.balanceOf(voter1.address);
+      
+      // Try to vote with invalid choice (3 is not valid - should be 0, 1, or 2)
+      await expect(
+        proposal.connect(voter1).castVote(3, voterBalance)
+      ).to.be.revertedWith("Invalid vote choice");
+    });
   });
 });

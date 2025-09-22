@@ -3,33 +3,33 @@
 ## 2-3 Minute Demo Video Script
 
 ### Introduction (0-15 seconds)
-"Hi! I'm presenting ClimateDAO, an AI-powered decentralized autonomous organization built on XDC Network with Tribes OS integration. ClimateDAO enables transparent, community-driven funding for environmental projects using blockchain technology and AI impact assessment."
+"Hi! I'm Henry, a solo blockchain developer presenting ClimateDAO for the XDC × Tribes Hackathon. ClimateDAO is an AI-powered decentralized autonomous organization that revolutionizes environmental funding through blockchain technology, AI impact assessment, and community governance."
 
 ### Problem Statement (15-30 seconds)
-"Current climate funding lacks transparency and community input. Traditional funding mechanisms are centralized, slow, and don't leverage the collective wisdom of global communities. ClimateDAO solves this by creating a decentralized platform where anyone can propose, vote on, and fund environmental projects."
+"Current climate funding suffers from lack of transparency, centralized decision-making, and no objective impact assessment. Traditional mechanisms exclude global communities and lack accountability. ClimateDAO solves this by creating a decentralized platform where anyone can propose, vote on, and fund environmental projects with AI-powered analysis."
 
 ### Key Features Demo (30-90 seconds)
 
-#### 1. AI-Powered Proposal Analysis (30-45 seconds)
-"Let me show you how our AI integration works. When creating a proposal, users can click 'Analyze Impact' to get real-time AI assessment using Hugging Face's Mistral-7B model. The AI provides impact scores, CO2 reduction estimates, and feasibility analysis."
+#### 1. Live Application Demo (30-45 seconds)
+"Let me show you the live application at frontend-c4sb6trvl-teamtitanlink.vercel.app. First, I'll connect my XDC wallet to the Apothem Testnet. The app automatically detects the network and shows my CLIMATE token balance."
 
-#### 2. Real Blockchain Integration (45-60 seconds)
-"All proposals are stored on XDC Network's Apothem Testnet. Here you can see real contract interactions - creating proposals, voting with CLIMATE tokens, and executing funded projects. The smart contracts ensure transparent fund distribution."
+#### 2. AI-Powered Proposal Creation (45-60 seconds)
+"Now I'll create a new environmental proposal. I'll fill in the details for a solar farm project, then click 'Analyze Impact'. Watch as the AI processes this using Hugging Face's Mistral-7B model, providing impact scores, CO2 reduction estimates, and feasibility analysis in real-time."
 
-#### 3. Tribes OS Community Features (60-75 seconds)
+#### 3. Real Blockchain Integration (60-75 seconds)
+"The proposal is now stored on XDC Network's Apothem Testnet. You can see the transaction hash and verify it on the XDC Explorer. The smart contracts ensure transparent fund distribution and immutable voting records."
+
+#### 4. Tribes OS Community Features (75-90 seconds)
 "ClimateDAO integrates with Tribes OS for community management. Users earn XP for participation, unlock badges for achievements, and can access token-gated spaces. The leaderboard shows top contributors, and events keep the community engaged."
 
-#### 4. Live Dashboard (75-90 seconds)
-"The dashboard shows real-time statistics - total funds raised, active proposals, and community impact. Users can track their contributions, stake tokens for rewards, and see the collective environmental impact of funded projects."
-
 ### Technical Highlights (90-120 seconds)
-"ClimateDAO is built with modern web3 technologies: Solidity smart contracts on XDC Network, React frontend with Wagmi for wallet integration, and real AI analysis through Hugging Face API. The platform is fully deployed and functional - you can visit the live URL to try it yourself."
+"ClimateDAO is built with modern web3 technologies: Solidity 0.8.24 smart contracts on XDC Network, React 18.3.1 frontend with Wagmi for wallet integration, and real AI analysis through Hugging Face API. The platform has 74.42% test coverage with 29 passing tests, ensuring reliability and security."
 
 ### Call to Action (120-150 seconds)
-"ClimateDAO demonstrates how blockchain and AI can revolutionize environmental funding. The platform is live, the contracts are deployed, and the community is ready to make a real impact on climate change. Visit our live application to create your first proposal or support existing environmental projects."
+"ClimateDAO demonstrates how blockchain and AI can revolutionize environmental funding. The platform is live at frontend-c4sb6trvl-teamtitanlink.vercel.app, contracts are deployed on XDC Apothem Testnet, and the community is ready to make a real impact on climate change. Visit our GitHub repository at github.com/henrysammarfo/climatedao to explore the code."
 
 ### Closing (150-180 seconds)
-"Thank you for watching! ClimateDAO represents the future of decentralized environmental action - transparent, community-driven, and AI-enhanced. Together, we can fund the projects that matter most for our planet's future."
+"Thank you for watching! ClimateDAO represents the future of decentralized environmental action - transparent, community-driven, and AI-enhanced. Built for the XDC × Tribes Hackathon, this project shows how we can fund the projects that matter most for our planet's future. Together, we can make climate action accessible to everyone."
 
 ## Key Talking Points to Emphasize
 

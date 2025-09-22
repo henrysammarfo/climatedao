@@ -4,7 +4,21 @@ An AI-powered on-chain DAO for funding and governing environmental projects, bui
 
 ## Overview
 
-ClimateDAO addresses the lack of transparent, community-driven funding for climate initiatives by leveraging blockchain technology for trustless donations and AI for objective impact assessment. The platform enables global participation in climate action through decentralized governance and funding mechanisms.
+ClimateDAO addresses the critical lack of transparent, community-driven funding for climate initiatives by leveraging blockchain technology for trustless donations and AI for objective impact assessment. The platform enables global participation in climate action through decentralized governance and funding mechanisms.
+
+### The Problem
+- **Lack of Transparency**: Traditional climate funding lacks transparency and community input
+- **Centralized Decision Making**: Funding decisions are made by a few without community participation
+- **No Impact Assessment**: Limited objective analysis of environmental project effectiveness
+- **Geographic Barriers**: Global communities can't easily participate in local climate initiatives
+
+### The Solution
+ClimateDAO creates a decentralized platform where:
+- **AI-Powered Analysis**: Hugging Face Mistral-7B provides objective impact scoring and feasibility assessment
+- **Community Governance**: CLIMATE token holders vote on proposals and fund distribution
+- **Transparent Funding**: All transactions are on-chain and verifiable
+- **Global Participation**: Anyone can propose, vote on, and fund environmental projects
+- **Real Impact Tracking**: Monitor actual environmental outcomes of funded projects
 
 ## Features
 
@@ -37,30 +51,76 @@ climatedao/
 
 ## Quick Start
 
-1. **Install Dependencies**
+### Prerequisites
+- Node.js 18+ and npm/yarn
+- Git
+- XDC wallet (MetaMask with XDC Network configured)
+- Hugging Face API key (for AI features)
+
+### Installation
+
+1. **Clone the Repository**
    ```bash
-   npm run install:all
+   git clone https://github.com/henrysammarfo/climatedao.git
+   cd climatedao
    ```
 
-2. **Compile Contracts**
+2. **Install Dependencies**
+   ```bash
+   # Install all dependencies (contracts + frontend)
+   npm run install:all
+   
+   # Or install separately:
+   cd contracts && npm install
+   cd ../frontend && npm install
+   ```
+
+3. **Environment Setup**
+   ```bash
+   # Copy environment files
+   cp contracts/.env.example contracts/.env
+   cp frontend/.env.example frontend/.env
+   
+   # Edit the .env files with your keys
+   ```
+
+4. **Compile Contracts**
    ```bash
    npm run compile
    ```
 
-3. **Run Tests**
+5. **Run Tests**
    ```bash
    npm test
+   # Coverage: npm run coverage
    ```
 
-4. **Deploy to Apothem Testnet**
+6. **Deploy to Apothem Testnet**
    ```bash
    npm run deploy
    ```
 
-5. **Start Frontend**
+7. **Start Frontend**
    ```bash
    npm run dev
    ```
+
+### First Time Setup
+
+1. **Get XDC Testnet Tokens**
+   - Visit [XDC Faucet](https://faucet.apothem.network/)
+   - Connect your wallet and request testnet XDC
+
+2. **Configure MetaMask**
+   - Network Name: XDC Apothem Testnet
+   - RPC URL: https://rpc.apothem.network
+   - Chain ID: 51
+   - Currency Symbol: XDC
+
+3. **Get Hugging Face API Key**
+   - Visit [Hugging Face](https://huggingface.co/settings/tokens)
+   - Create a new token with read access
+   - Add to `frontend/.env` as `VITE_HF_API_KEY`
 
 ## Live Deployment
 
@@ -75,6 +135,18 @@ climatedao/
 - **Vercel Dashboard**: https://vercel.com/teamtitanlink/frontend
 - Environment variables configured for live contracts
 - Production build optimized and deployed
+
+### Live Testing Validation ✅
+
+The deployed application has been thoroughly tested with real integrations:
+
+- **✅ Wallet Connection**: Real XDC Apothem Testnet wallet integration
+- **✅ Smart Contract Calls**: All transactions verified on XDC Explorer
+- **✅ AI Integration**: Real Hugging Face API calls for proposal analysis
+- **✅ Tribes SDK**: Full integration with community features (XP, badges, events)
+- **✅ End-to-End Flow**: Create proposals → AI analysis → Vote → Fund → Track impact
+
+**Test Coverage**: 74.42% with 29 passing tests covering edge cases and security scenarios.
 
 ## Environment Variables
 

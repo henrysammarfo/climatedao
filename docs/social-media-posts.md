@@ -12,7 +12,7 @@
 Create proposals, vote with CLIMATE tokens, and fund real environmental projects. Built for the @tribes_astrix hackathon.
 
 🔗 Live Demo: https://frontend-c4sb6trvl-teamtitanlink.vercel.app
-📋 GitHub: https://github.com/username/climatedao
+📋 GitHub: https://github.com/henrysammarfo/climatedao
 ⚡ Contracts: XDC Apothem Testnet
 
 #ClimateDAO #XDCNetwork #TribesOS #AI #Blockchain #ClimateAction #Web3 #DeFi
@@ -42,7 +42,7 @@ The platform is 100% functional with no mock implementations - everything is liv
 Built for the XDC × Tribes Global Hackathon, ClimateDAO demonstrates how blockchain and AI can revolutionize environmental funding.
 
 🔗 **Try it live**: https://frontend-c4sb6trvl-teamtitanlink.vercel.app
-📋 **Source code**: https://github.com/username/climatedao
+📋 **Source code**: https://github.com/henrysammarfo/climatedao
 
 #ClimateDAO #Blockchain #AI #EnvironmentalTech #Web3 #ClimateAction #XDCNetwork #TribesOS #Hackathon
 
@@ -80,7 +80,7 @@ An AI-powered decentralized autonomous organization that enables transparent, co
 - Mobile-responsive design with modern UX
 
 **Live Demo**: https://frontend-c4sb6trvl-teamtitanlink.vercel.app
-**GitHub**: https://github.com/username/climatedao
+**GitHub**: https://github.com/henrysammarfo/climatedao
 **Contract Addresses**: 
 - ClimateToken: 0x41d87298B54d329872c29ec385367cD4C404e8e6
 - ClimateDAO: 0xfD2CFC86e06c54d1ffe9B503391d91452a8Fd02D
@@ -140,6 +140,45 @@ Best regards,
 [Your Name]
 
 ---
+
+## DoraHacks Submission Guide
+
+### Submission Form Fields
+
+**Project Name:** ClimateDAO
+
+**Description:** 
+An AI-powered decentralized autonomous organization for funding and governing environmental projects, built on XDC Network with Tribes OS integration. ClimateDAO enables transparent, community-driven funding for climate initiatives using blockchain technology for trustless donations and AI for objective impact assessment.
+
+**Key Features:**
+- AI-powered impact assessment using Hugging Face Mistral-7B
+- Decentralized governance with CLIMATE token voting
+- Real-time community features through Tribes OS integration
+- Transparent fund distribution on XDC Network
+- Mobile-responsive design with modern UX
+
+**GitHub Repository:** https://github.com/henrysammarfo/climatedao
+
+**Demo Link:** https://frontend-c4sb6trvl-teamtitanlink.vercel.app
+
+**Video Demo:** [Link to your 2-3 minute demo video]
+
+**Smart Contract Addresses:**
+- ClimateToken: 0x41d87298B54d329872c29ec385367cD4C404e8e6
+- ClimateDAO: 0xfD2CFC86e06c54d1ffe9B503391d91452a8Fd02D
+- Network: XDC Apothem Testnet (Chain ID: 51)
+
+**Tags:** DAO, AI, Climate, DeFi, XDC, Tribes, Blockchain, Environmental
+
+**Team:** Solo developer - Henry Sammarfo
+
+**Submission Steps:**
+1. Visit https://dorahacks.io/hackathon/tribes
+2. Click "Submit BUIDL"
+3. Select "Create New BUIDL"
+4. Fill in all the above information
+5. Upload demo video
+6. Submit for review
 
 ## Hashtag Strategy
 
