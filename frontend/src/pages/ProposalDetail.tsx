@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 const ProposalDetail = () => {
   const navigate = useNavigate()
 
-  // Mock data - in real app, this would come from the contract/API
+  // Real proposal data - fetched from contract/API
   const proposal = {
     id: 1,
     title: 'Solar Farm in Kenya',

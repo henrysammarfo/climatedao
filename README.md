@@ -61,6 +61,18 @@ climatedao/
    npm run dev
    ```
 
+## Live Deployment
+
+**Smart Contracts (XDC Apothem Testnet):**
+- ClimateToken: `0x41d87298B54d329872c29ec385367cD4C404e8e6`
+- ClimateDAO: `0xfD2CFC86e06c54d1ffe9B503391d91452a8Fd02D`
+- Network: XDC Apothem Testnet (Chain ID: 51)
+- Explorer: https://explorer.apothem.network
+
+**Frontend:**
+- Built and ready for deployment to Vercel/Netlify
+- Environment variables configured for live contracts
+
 ## Environment Variables
 
 Create `.env` files in both `contracts/` and `frontend/` directories:
