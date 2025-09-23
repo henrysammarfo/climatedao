@@ -2,6 +2,8 @@
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 import { ClimateDAO_ABI, ClimateToken_ABI, ProposalData } from '../services/contractService'
+import { ProposalService } from '../services/proposalService'
+import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 
 const CLIMATE_TOKEN_ADDRESS = (import.meta as any).env?.VITE_CLIMATE_TOKEN_ADDRESS || '0x216e6228b7E1CaB0136f8a231460FC1Fd9f594f5'
@@ -314,34 +316,64 @@ export const useClaimRewards = () => {
 }
 
 export const useAllProposals = () => {
-  const { data: nextProposalId } = useReadContract({
-    address: CLIMATE_DAO_ADDRESS as `0x${string}`,
-    abi: ClimateDAO_ABI,
-    functionName: 'nextProposalId',
-  })
+  const [proposals, setProposals] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Since the contract doesn't have a way to fetch individual proposals,
-  // we'll return an empty array for now. In a real implementation,
-  // you'd need to add events or additional view functions to the contract
-  const proposals: any[] = []
+  useEffect(() => {
+    const fetchProposals = async () => {
+      setIsLoading(true)
+      try {
+        const fetchedProposals = await ProposalService.getAllProposals()
+        setProposals(fetchedProposals)
+      } catch (error) {
+        console.error('Failed to fetch proposals:', error)
+        setProposals([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProposals()
+  }, [])
 
   return {
     proposals,
-    isLoading: false,
-    totalCount: nextProposalId ? Number(nextProposalId) - 1 : 0 // nextProposalId is 1-indexed
+    isLoading,
+    totalCount: proposals.length
   }
 }
 
 export const useUserProposals = (userAddress?: `0x${string}`) => {
-  const { proposals } = useAllProposals()
-  
-  const userProposals = proposals?.filter(proposal => 
-    proposal.proposer?.toLowerCase() === userAddress?.toLowerCase()
-  ) || []
+  const [userProposals, setUserProposals] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchUserProposals = async () => {
+      if (!userAddress) {
+        setUserProposals([])
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const fetchedProposals = await ProposalService.getUserProposals(userAddress)
+        setUserProposals(fetchedProposals)
+      } catch (error) {
+        console.error('Failed to fetch user proposals:', error)
+        setUserProposals([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchUserProposals()
+  }, [userAddress])
 
   return {
     userProposals,
-    count: userProposals.length
+    count: userProposals.length,
+    isLoading
   }
 }
 
@@ -356,13 +388,36 @@ export const useUserVotes = (_userAddress?: `0x${string}`) => {
   }
 }
 
-export const useProposal = (_proposalId: number) => {
-  // Since the contract doesn't have a way to fetch individual proposals,
-  // we'll return null for now. In a real implementation,
-  // you'd need to add events or additional view functions to the contract
+export const useProposal = (proposalId: number) => {
+  const [proposal, setProposal] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchProposal = async () => {
+      if (!proposalId) {
+        setProposal(null)
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const fetchedProposal = await ProposalService.getProposal(proposalId)
+        setProposal(fetchedProposal)
+      } catch (error) {
+        console.error('Failed to fetch proposal:', error)
+        setProposal(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProposal()
+  }, [proposalId])
+
   return {
-    proposal: null,
-    isLoading: false
+    proposal,
+    isLoading
   }
 }
 

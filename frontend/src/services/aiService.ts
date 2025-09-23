@@ -28,12 +28,11 @@ export class AIService {
    * Analyze a proposal and generate impact metrics using Hugging Face Inference API
    */
   static async analyzeProposal(proposal: ProposalData): Promise<ProposalAnalysis> {
-    try {
-      if (!HF_TOKEN) {
-        console.warn('Hugging Face API key not provided, using fallback analysis')
-        return this.getFallbackAnalysis(proposal)
-      }
+    if (!HF_TOKEN) {
+      throw new Error('Hugging Face API key is required for AI analysis. Please configure VITE_HF_API_KEY in your environment variables.')
+    }
 
+    try {
       const prompt = this.createAnalysisPrompt(proposal)
       
       // Call Hugging Face Inference API with axios
@@ -64,16 +63,17 @@ export class AIService {
       // Handle specific error cases
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 429) {
-          console.warn('Rate limit exceeded, using fallback analysis')
+          throw new Error('AI service rate limit exceeded. Please try again later.')
         } else if (error.response?.status === 401) {
-          console.error('Invalid API key')
+          throw new Error('Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.')
         } else if (error.code === 'ECONNABORTED') {
-          console.error('Request timeout')
+          throw new Error('AI service request timeout. Please try again.')
+        } else if (error.response && error.response.status >= 500) {
+          throw new Error('AI service is temporarily unavailable. Please try again later.')
         }
       }
       
-      // Return fallback analysis
-      return this.getFallbackAnalysis(proposal)
+      throw new Error('AI analysis failed. Please try again or contact support.')
     }
   }
 
@@ -108,7 +108,7 @@ Consider factors like environmental impact potential, feasibility, scalability, 
   /**
    * Parse the AI response into structured data
    */
-  private static parseAnalysisResponse(text: string, proposal: ProposalData): ProposalAnalysis {
+  private static parseAnalysisResponse(text: string, _proposal: ProposalData): ProposalAnalysis {
     try {
       // Try to extract JSON from the response
       const jsonMatch = text.match(/\{[\s\S]*\}/)
@@ -131,8 +131,7 @@ Consider factors like environmental impact potential, feasibility, scalability, 
       console.error('Failed to parse AI response:', error)
     }
 
-    // Fallback to rule-based analysis if JSON parsing fails
-    return this.getFallbackAnalysis(proposal)
+    throw new Error('Failed to parse AI response. The AI service returned an invalid format.')
   }
 
   /**
@@ -181,16 +180,11 @@ Consider factors like environmental impact potential, feasibility, scalability, 
    * Get AI-powered project suggestions
    */
   static async getProjectSuggestions(category: string, location: string): Promise<string[]> {
-    try {
-      if (!HF_TOKEN) {
-        console.warn('Hugging Face API key not provided, using fallback suggestions')
-        return [
-          'Solar panel installation program for residential buildings',
-          'Community garden and urban farming initiative',
-          'Renewable energy education and training center'
-        ]
-      }
+    if (!HF_TOKEN) {
+      throw new Error('Hugging Face API key is required for AI suggestions. Please configure VITE_HF_API_KEY in your environment variables.')
+    }
 
+    try {
       const prompt = `[INST] Suggest 3 innovative environmental projects for ${category} in ${location}.
 Focus on high-impact, feasible solutions that could be funded through a DAO.
 Provide brief, actionable project ideas.
@@ -225,18 +219,21 @@ Format as a simple list:
         .map((line: string) => line.replace(/^\d+\.\s*/, '').trim())
         .slice(0, 3)
 
-      return suggestions.length > 0 ? suggestions : [
-        'Solar panel installation program for residential buildings',
-        'Community garden and urban farming initiative',
-        'Renewable energy education and training center'
-      ]
+      if (suggestions.length === 0) {
+        throw new Error('AI service returned no valid suggestions')
+      }
+
+      return suggestions
     } catch (error) {
       console.error('Failed to get AI suggestions:', error)
-      return [
-        'Solar panel installation program for residential buildings',
-        'Community garden and urban farming initiative', 
-        'Renewable energy education and training center'
-      ]
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 429) {
+          throw new Error('AI service rate limit exceeded. Please try again later.')
+        } else if (error.response?.status === 401) {
+          throw new Error('Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.')
+        }
+      }
+      throw new Error('Failed to get AI suggestions. Please try again.')
     }
   }
 
@@ -248,24 +245,11 @@ Format as a simple list:
     commonChallenges: string[]
     successFactors: string[]
   }> {
-    try {
-      if (!HF_TOKEN) {
-        console.warn('Hugging Face API key not provided, using fallback insights')
-        return {
-          averageImpact: 70,
-          commonChallenges: [
-            'Regulatory approval delays',
-            'Funding and resource constraints',
-            'Community engagement challenges'
-          ],
-          successFactors: [
-            'Strong community support',
-            'Clear project timeline',
-            'Experienced project team'
-          ]
-        }
-      }
+    if (!HF_TOKEN) {
+      throw new Error('Hugging Face API key is required for AI insights. Please configure VITE_HF_API_KEY in your environment variables.')
+    }
 
+    try {
       const prompt = `[INST] Analyze the ${category} sector for environmental projects.
 Provide insights on:
 - Average impact score (0-100)
@@ -308,23 +292,18 @@ Format as JSON:
           successFactors: Array.isArray(parsed.successFactors) ? parsed.successFactors : []
         }
       }
+      
+      throw new Error('AI service returned invalid insights format')
     } catch (error) {
       console.error('Failed to get category insights:', error)
-    }
-
-    // Fallback insights
-    return {
-      averageImpact: 70,
-      commonChallenges: [
-        'Regulatory approval delays',
-        'Funding and resource constraints',
-        'Community engagement challenges'
-      ],
-      successFactors: [
-        'Strong community support',
-        'Clear project timeline',
-        'Experienced project team'
-      ]
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 429) {
+          throw new Error('AI service rate limit exceeded. Please try again later.')
+        } else if (error.response?.status === 401) {
+          throw new Error('Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.')
+        }
+      }
+      throw new Error('Failed to get AI insights. Please try again.')
     }
   }
 }

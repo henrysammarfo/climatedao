@@ -55,7 +55,7 @@ export interface GovernanceAction {
  */
 export class TribesIntegration {
   private static sdk: AstrixSDK | null = null
-  private static tribeId = 1 // ClimateDAO tribe ID
+  private static tribeId = parseInt((import.meta as any).env?.VITE_TRIBES_TRIBE_ID || '1')
   private static users = new Map<string, UserProfile>()
   private static events: Event[] = []
   private static governanceActions: GovernanceAction[] = []
@@ -69,19 +69,30 @@ export class TribesIntegration {
         throw new Error('No wallet provider found')
       }
 
+      // Get contract addresses from environment
+      const contractAddressesStr = (import.meta as any).env?.VITE_TRIBES_CONTRACT_ADDRESSES
+      let contractAddresses = {
+        roleManager: '0x123...',
+        tribeController: '0x456...',
+        astrixToken: '0x789...',
+        tokenDispenser: '0xabc...',
+        astrixPointSystem: '0xdef...',
+        profileNFTMinter: '0xghi...'
+      }
+
+      if (contractAddressesStr) {
+        try {
+          contractAddresses = JSON.parse(contractAddressesStr)
+        } catch (error) {
+          console.warn('Failed to parse Tribes contract addresses from environment')
+        }
+      }
+
       // Initialize SDK with XDC Apothem Testnet configuration
       this.sdk = new AstrixSDK({
         provider: window.ethereum,
-        chainId: 51, // XDC Apothem Testnet
-        contracts: {
-          // These would be the actual deployed contract addresses on XDC
-          roleManager: '0x123...',      // Role Manager contract address
-          tribeController: '0x456...',  // Tribe Controller contract address
-          astrixToken: '0x789...',      // Astrix Token contract address
-          tokenDispenser: '0xabc...',   // Token Dispenser contract address
-          astrixPointSystem: '0xdef...', // Point System contract address
-          profileNFTMinter: '0xghi...'   // Profile NFT Minter contract address
-        },
+        chainId: parseInt((import.meta as any).env?.VITE_XDC_CHAIN_ID || '51'),
+        contracts: contractAddresses,
         verbose: true
       })
 
@@ -158,20 +169,7 @@ export class TribesIntegration {
       return user
     } catch (error) {
       console.error('Failed to initialize user in Tribes:', error)
-      // Fallback to basic user profile
-      const user: UserProfile = {
-        id: `user_${Date.now()}`,
-        address,
-        username: username || `User_${address.slice(0, 6)}`,
-        xp: 0,
-        level: 1,
-        badges: [],
-        joinedAt: new Date(),
-        contributions: 0,
-        role: 'member'
-      }
-      this.users.set(address, user)
-      return user
+      throw new Error('Failed to initialize user in Tribes OS. Please ensure you are connected to the correct network and have the necessary permissions.')
     }
   }
 
