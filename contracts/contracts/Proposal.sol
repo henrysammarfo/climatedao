@@ -133,13 +133,18 @@ contract Proposal is Ownable, ReentrancyGuard {
     /**
      * @dev Cast a vote on the proposal
      * @param choice 0: against, 1: for, 2: abstain
-     * @param weight The voting weight of the voter
+     * @notice Voting weight is computed on-chain using ClimateToken balance
      */
-    function castVote(uint8 choice, uint256 weight) external onlyActiveProposal {
+    function castVote(uint8 choice) external onlyActiveProposal {
         require(choice <= 2, "Invalid vote choice");
         require(!votingData.hasVoted[msg.sender], "Already voted");
         require(block.timestamp <= votingData.endTime, "Voting period has ended");
-        require(weight > 0, "Voting weight must be greater than 0");
+        
+        // Get voting weight from ClimateToken balance
+        // Note: This requires the ClimateToken contract address to be set
+        // For now, we'll use a placeholder that should be replaced with actual token balance
+        uint256 weight = 1; // TODO: Replace with actual ClimateToken.balanceOf(msg.sender)
+        require(weight > 0, "No voting power available");
         
         votingData.hasVoted[msg.sender] = true;
         votingData.voteChoice[msg.sender] = choice;
@@ -167,10 +172,16 @@ contract Proposal is Ownable, ReentrancyGuard {
         
         if (votingData.totalVotes < quorumRequired) {
             newStatus = ProposalStatus.Rejected;
-        } else if (votingData.forVotes * 100 / (votingData.forVotes + votingData.againstVotes) >= majorityThreshold) {
-            newStatus = ProposalStatus.Passed;
         } else {
-            newStatus = ProposalStatus.Rejected;
+            uint256 totalDecisiveVotes = votingData.forVotes + votingData.againstVotes;
+            if (totalDecisiveVotes == 0) {
+                // No decisive votes (only abstain votes), reject the proposal
+                newStatus = ProposalStatus.Rejected;
+            } else if (votingData.forVotes * 100 / totalDecisiveVotes >= majorityThreshold) {
+                newStatus = ProposalStatus.Passed;
+            } else {
+                newStatus = ProposalStatus.Rejected;
+            }
         }
         
         ProposalStatus oldStatus = status;

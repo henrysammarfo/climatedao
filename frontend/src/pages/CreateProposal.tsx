@@ -1,12 +1,15 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAccount, useSwitchChain } from 'wagmi'
-import { ArrowLeft, Upload, Sparkles, Brain, TrendingUp, Users, DollarSign, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Upload, Sparkles, Brain, TrendingUp, Users, DollarSign, AlertTriangle, CheckCircle, XCircle, Wifi, WifiOff } from 'lucide-react'
 import { useAI } from '../hooks/useAI'
 import { useCreateProposal } from '../hooks/useContracts'
 import { useTribes } from '../hooks/useTribes'
-import { ProposalData } from '../services/aiService'
+import { useTokenBalance } from '../hooks/useTokenBalance'
+import { ProposalData, AIService } from '../services/aiService'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { AIErrorBoundary } from '../components/AIErrorHandler'
+import ContextualFaucet from '../components/ContextualFaucet'
 import { validateProposalData, sanitizeInput } from '../utils/security'
 import toast from 'react-hot-toast'
 
@@ -17,7 +20,9 @@ const CreateProposal = () => {
   const { isAnalyzing, analysis, analyzeProposal } = useAI()
   const { createProposal, isPending: isCreating } = useCreateProposal()
   const { trackGovernanceAction } = useTribes()
+  const { getActionRequirements } = useTokenBalance()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const connectionTestedRef = useRef<boolean>(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -28,6 +33,12 @@ const CreateProposal = () => {
     website: '',
   })
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [aiConfigStatus, setAiConfigStatus] = useState<{
+    isValid: boolean
+    error?: string
+    isTesting: boolean
+  }>({ isValid: false, isTesting: false })
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null)
 
   const categories = [
     'Renewable Energy',
@@ -41,6 +52,40 @@ const CreateProposal = () => {
 
   // Check if user is on correct network
   const isCorrectNetwork = chainId === 51 // XDC Apothem Testnet
+  
+  // Check token requirements for creating proposals
+  const proposalRequirements = getActionRequirements('createProposal')
+
+  // Validate AI service configuration on component mount
+  useEffect(() => {
+    const validateAIConfig = async () => {
+      setAiConfigStatus(prev => ({ ...prev, isTesting: true }))
+      
+      try {
+        const validation = AIService.validateConfiguration()
+        if (!validation.isValid) {
+          setAiConfigStatus({ isValid: false, error: validation.error, isTesting: false })
+          return
+        }
+        
+        // Only validate configuration, don't test connection on mount
+        setAiConfigStatus({ 
+          isValid: true, 
+          error: undefined, 
+          isTesting: false 
+        })
+      } catch (error) {
+        console.error('AI configuration validation failed:', error)
+        setAiConfigStatus({ 
+          isValid: false, 
+          error: 'Failed to validate AI service configuration', 
+          isTesting: false 
+        })
+      }
+    }
+
+    validateAIConfig()
+  }, [])
 
   const handleSwitchNetwork = async () => {
     try {
@@ -118,7 +163,15 @@ const CreateProposal = () => {
         await trackGovernanceAction('proposal', undefined)
       }
       
-      navigate('/proposals')
+      // Show success message and navigate after a short delay
+      toast.success('Proposal created successfully! Redirecting to proposals...', {
+        duration: 3000
+      })
+      
+      // Navigate to proposals page after a short delay to allow for blockchain confirmation
+      setTimeout(() => {
+        navigate('/proposals')
+      }, 2000)
     } catch (error) {
       console.error('Failed to create proposal:', error)
       toast.error('Failed to create proposal')
@@ -127,10 +180,44 @@ const CreateProposal = () => {
 
   const handleAnalyze = async () => {
     if (!formData.title || !formData.description || !formData.category) {
-      alert('Please fill in title, description, and category before analyzing')
+      toast.error('Please fill in title, description, and category before analyzing')
       return
     }
 
+    if (!aiConfigStatus.isValid) {
+      toast.error('AI service is not properly configured. Please check your API key settings.')
+      return
+    }
+
+    // Test connection if not already tested in this session
+    if (!connectionTestedRef.current) {
+      setAiConfigStatus(prev => ({ ...prev, isTesting: true }))
+      try {
+        const connectionTest = await AIService.testConnection()
+        connectionTestedRef.current = true
+        setAiConfigStatus({ 
+          isValid: connectionTest.success, 
+          error: connectionTest.error, 
+          isTesting: false 
+        })
+        
+        if (!connectionTest.success) {
+          toast.error(connectionTest.error || 'AI service connection test failed')
+          return
+        }
+      } catch (error) {
+        console.error('AI connection test failed:', error)
+        setAiConfigStatus({ 
+          isValid: false, 
+          error: 'Connection test failed', 
+          isTesting: false 
+        })
+        toast.error('AI service connection test failed')
+        return
+      }
+    }
+
+    setAiAnalysisError(null)
     const proposalData: ProposalData = {
       title: formData.title,
       description: formData.description,
@@ -140,7 +227,40 @@ const CreateProposal = () => {
       duration: parseInt(formData.duration) || 0
     }
 
-    await analyzeProposal(proposalData)
+    try {
+      await analyzeProposal(proposalData)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'AI analysis failed'
+      setAiAnalysisError(errorMessage)
+    }
+  }
+
+  const handleTestAIConnection = async () => {
+    setAiConfigStatus(prev => ({ ...prev, isTesting: true }))
+    
+    try {
+      const connectionTest = await AIService.testConnection()
+      connectionTestedRef.current = true
+      setAiConfigStatus({ 
+        isValid: connectionTest.success, 
+        error: connectionTest.error, 
+        isTesting: false 
+      })
+      
+      if (connectionTest.success) {
+        toast.success('AI service connection test successful!')
+      } else {
+        toast.error(connectionTest.error || 'AI service connection test failed')
+      }
+    } catch (error) {
+      console.error('AI connection test failed:', error)
+      setAiConfigStatus({ 
+        isValid: false, 
+        error: 'Connection test failed', 
+        isTesting: false 
+      })
+      toast.error('AI service connection test failed')
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -152,6 +272,49 @@ const CreateProposal = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {/* AI Service Status */}
+      {!aiConfigStatus.isValid && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <XCircle className="w-5 h-5 text-red-600" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                AI Service Not Available
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                {aiConfigStatus.error || 'AI service configuration is invalid'}
+              </p>
+              {import.meta.env.DEV && (
+                <button
+                  onClick={handleTestAIConnection}
+                  disabled={aiConfigStatus.isTesting}
+                  className="mt-2 text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded disabled:opacity-50"
+                >
+                  {aiConfigStatus.isTesting ? 'Testing...' : 'Test Connection'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Service Connected */}
+      {aiConfigStatus.isValid && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
+                AI Service Connected
+              </h3>
+              <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                AI impact analysis is available for your proposals.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Wallet Connection Warning */}
       {!address && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
@@ -193,6 +356,15 @@ const CreateProposal = () => {
         </div>
       )}
 
+      {/* Token Requirements Warning */}
+      {address && isCorrectNetwork && !proposalRequirements.canCreateProposal && (
+        <ContextualFaucet 
+          mode="banner" 
+          action="createProposal"
+          className="mb-6"
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
@@ -212,7 +384,8 @@ const CreateProposal = () => {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Main Form */}
         <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <AIErrorBoundary>
+            <form onSubmit={handleSubmit} className="space-y-6">
             <div className="card">
               <h2 className="text-xl font-semibold mb-4">Project Information</h2>
               
@@ -369,7 +542,7 @@ const CreateProposal = () => {
               <button
                 type="button"
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || !address || !isCorrectNetwork}
+                disabled={isAnalyzing || !address || !isCorrectNetwork || !aiConfigStatus.isValid}
                 className="btn-outline flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? (
@@ -377,38 +550,79 @@ const CreateProposal = () => {
                 ) : (
                   <Brain className="w-4 h-4 mr-2" />
                 )}
-                {isAnalyzing ? 'Analyzing...' : 'Analyze Impact'}
+                {isAnalyzing ? 'Analyzing with AI...' : 'Analyze Impact'}
               </button>
               
-              <div className="flex space-x-4">
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={isCreating || !address || !isCorrectNetwork}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isCreating ? (
-                    <>
-                      <LoadingSpinner size="sm" />
-                      Creating Proposal...
-                    </>
-                  ) : (
-                    'Submit Proposal'
-                  )}
-                </button>
+              <div className="space-y-4">
+                {/* Token Requirements Check */}
+                {address && isCorrectNetwork && !proposalRequirements.canCreateProposal && (
+                  <ContextualFaucet 
+                    mode="inline" 
+                    action="createProposal"
+                    className="mb-4"
+                  />
+                )}
+                
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isCreating || !address || !isCorrectNetwork || !proposalRequirements.canCreateProposal}
+                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCreating ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        Creating Proposal...
+                      </>
+                    ) : (
+                      'Submit Proposal'
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </form>
+          </AIErrorBoundary>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
+          <AIErrorBoundary>
+          {/* AI Analysis Error */}
+          {aiAnalysisError && (
+            <div className="card border-red-200 bg-red-50 dark:bg-red-900/20">
+              <h3 className="text-lg font-semibold mb-4 flex items-center text-red-800 dark:text-red-200">
+                <XCircle className="w-5 h-5 mr-2 text-red-600" />
+                AI Analysis Failed
+              </h3>
+              <div className="space-y-3">
+                <p className="text-sm text-red-700 dark:text-red-300">{aiAnalysisError}</p>
+                <div className="text-xs text-red-600 dark:text-red-400">
+                  <p><strong>Troubleshooting steps:</strong></p>
+                  <ul className="mt-1 space-y-1">
+                    <li>• Check your internet connection</li>
+                    <li>• Verify your Hugging Face API key is valid</li>
+                    <li>• Ensure you have sufficient API quota</li>
+                    <li>• Try again in a few minutes</li>
+                  </ul>
+                </div>
+                <button
+                  onClick={() => setAiAnalysisError(null)}
+                  className="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* AI Analysis Results */}
           {analysis && (
             <div className="card">
@@ -490,7 +704,14 @@ const CreateProposal = () => {
           )}
 
           <div className="card">
-            <h3 className="text-lg font-semibold mb-4">AI Impact Assessment</h3>
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              {aiConfigStatus.isValid ? (
+                <Wifi className="w-5 h-5 mr-2 text-green-600" />
+              ) : (
+                <WifiOff className="w-5 h-5 mr-2 text-red-600" />
+              )}
+              AI Impact Assessment
+            </h3>
             <div className="space-y-3">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Sparkles className="w-4 h-4 text-primary-600" />
@@ -508,6 +729,11 @@ const CreateProposal = () => {
                 <Sparkles className="w-4 h-4 text-primary-600" />
                 <span>Job creation projections</span>
               </div>
+              {!aiConfigStatus.isValid && (
+                <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-800 dark:text-yellow-200">
+                  AI service is currently unavailable. Analysis features are disabled.
+                </div>
+              )}
             </div>
           </div>
 
@@ -542,6 +768,7 @@ const CreateProposal = () => {
               <li>• Include relevant images and documentation</li>
             </ul>
           </div>
+          </AIErrorBoundary>
         </div>
       </div>
     </div>

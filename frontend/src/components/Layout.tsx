@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useDarkMode } from '../hooks/useDarkMode'
+import { useTokenBalance } from '../hooks/useTokenBalance'
 import FaucetButton from './FaucetButton'
 
 interface LayoutProps {
@@ -27,6 +28,14 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { isDarkMode, toggleDarkMode } = useDarkMode()
+  const { needsFaucet } = useTokenBalance()
+  
+  // Determine faucet button variant based on user needs
+  const getFaucetVariant = () => {
+    if (!isConnected) return 'hidden'
+    if (needsFaucet()) return 'prominent'
+    return 'default'
+  }
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -74,8 +83,12 @@ const Layout = ({ children }: LayoutProps) => {
 
             {/* Wallet Info */}
             <div className="flex items-center space-x-4">
-              {/* Faucet Button */}
-              <FaucetButton />
+              {/* Enhanced Faucet Button with smart visibility */}
+              <FaucetButton 
+                variant={getFaucetVariant()}
+                showBalance={needsFaucet()}
+                className="hidden sm:block"
+              />
               
               {/* Dark Mode Toggle */}
               <button
@@ -127,6 +140,17 @@ const Layout = ({ children }: LayoutProps) => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="px-2 pt-2 pb-3 space-y-1">
+              {/* Mobile Faucet Button */}
+              {isConnected && (
+                <div className="px-3 py-2">
+                  <FaucetButton 
+                    variant={needsFaucet() ? 'prominent' : 'default'}
+                    showBalance={needsFaucet()}
+                    className="w-full"
+                  />
+                </div>
+              )}
+              
               {navigation.map((item) => {
                 const Icon = item.icon
                 return (

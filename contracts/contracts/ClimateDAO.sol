@@ -34,6 +34,19 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
     mapping(address => uint256[]) public userProposals;
     mapping(address => uint256) public userContributions;
     mapping(address => bool) public isModerator;
+    mapping(address => bool) public validProposal;
+    
+    // User Registry
+    mapping(address => bool) public registeredUsers;
+    mapping(address => UserInfo) public userRegistry;
+    
+    struct UserInfo {
+        uint256 registrationTimestamp;
+        uint256 totalContributions;
+        uint256 proposalCount;
+        uint256 voteCount;
+        bool isActive;
+    }
     
     // Events
     event ProposalCreated(
@@ -60,6 +73,10 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
     event ModeratorRemoved(address indexed moderator);
     event PlatformFeeUpdated(uint256 oldFee, uint256 newFee);
     
+    // User Registry Events
+    event UserRegistered(address indexed user, uint256 timestamp);
+    event UserProfileUpdated(address indexed user, uint256 totalContributions, uint256 proposalCount, uint256 voteCount);
+    
     modifier onlyModerator() {
         require(isModerator[msg.sender] || msg.sender == owner(), "Not a moderator");
         _;
@@ -74,6 +91,9 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
     constructor(address _climateToken) Ownable(msg.sender) {
         climateToken = ClimateToken(_climateToken);
         isModerator[msg.sender] = true;
+        
+        // Register the owner as the first user
+        _registerUser(msg.sender);
     }
     
     /**
@@ -90,6 +110,11 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
         require(bytes(projectDetails.title).length > 0, "Title required");
         require(bytes(projectDetails.description).length > 0, "Description required");
         
+        // Auto-register user if not already registered
+        if (!registeredUsers[msg.sender]) {
+            _registerUser(msg.sender);
+        }
+        
         proposalCounter++;
         uint256 proposalId = proposalCounter;
         
@@ -105,7 +130,17 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
         );
         
         proposals[proposalId] = address(newProposal);
+        validProposal[address(newProposal)] = true;
         userProposals[msg.sender].push(proposalId);
+        
+        // Update user statistics
+        userRegistry[msg.sender].proposalCount++;
+        emit UserProfileUpdated(
+            msg.sender,
+            userRegistry[msg.sender].totalContributions,
+            userRegistry[msg.sender].proposalCount,
+            userRegistry[msg.sender].voteCount
+        );
         
         emit ProposalCreated(
             proposalId,
@@ -126,8 +161,22 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
         require(amount > 0, "Amount must be greater than 0");
         require(climateToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
         
+        // Auto-register user if not already registered
+        if (!registeredUsers[msg.sender]) {
+            _registerUser(msg.sender);
+        }
+        
         userContributions[msg.sender] += amount;
         totalFundsRaised += amount;
+        
+        // Update user statistics
+        userRegistry[msg.sender].totalContributions += amount;
+        emit UserProfileUpdated(
+            msg.sender,
+            userRegistry[msg.sender].totalContributions,
+            userRegistry[msg.sender].proposalCount,
+            userRegistry[msg.sender].voteCount
+        );
         
         emit FundsDonated(msg.sender, amount, totalFundsRaised);
     }
@@ -285,5 +334,70 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
             totalFundsDistributed,
             climateToken.balanceOf(address(this))
         );
+    }
+    
+    /**
+     * @dev Register a user in the DAO (self-registration only)
+     * @param user The address of the user to register
+     */
+    function registerUser(address user) external {
+        require(user != address(0), "Invalid address");
+        require(msg.sender == user, "Only the user can self-register");
+        require(!registeredUsers[user], "User already registered");
+        
+        _registerUser(user);
+    }
+    
+    /**
+     * @dev Check if a user is registered
+     * @param user The address of the user to check
+     * @return isRegistered True if user is registered
+     */
+    function isUserRegistered(address user) external view returns (bool) {
+        return registeredUsers[user];
+    }
+    
+    /**
+     * @dev Get user information
+     * @param user The address of the user
+     * @return userInfo The user information struct
+     */
+    function getUserInfo(address user) external view returns (UserInfo memory) {
+        require(registeredUsers[user], "User not registered");
+        return userRegistry[user];
+    }
+    
+    /**
+     * @dev Update user vote count (called by proposal contracts)
+     * @param user The address of the user who voted
+     */
+    function updateUserVoteCount(address user) external {
+        require(registeredUsers[user], "User not registered");
+        require(validProposal[msg.sender], "Only proposal contracts can update vote count");
+        
+        userRegistry[user].voteCount++;
+        emit UserProfileUpdated(
+            user,
+            userRegistry[user].totalContributions,
+            userRegistry[user].proposalCount,
+            userRegistry[user].voteCount
+        );
+    }
+    
+    /**
+     * @dev Internal function to register a user
+     * @param user The address of the user to register
+     */
+    function _registerUser(address user) internal {
+        registeredUsers[user] = true;
+        userRegistry[user] = UserInfo({
+            registrationTimestamp: block.timestamp,
+            totalContributions: 0,
+            proposalCount: 0,
+            voteCount: 0,
+            isActive: true
+        });
+        
+        emit UserRegistered(user, block.timestamp);
     }
 }

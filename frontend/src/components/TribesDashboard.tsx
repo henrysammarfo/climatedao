@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Trophy, 
   Calendar, 
@@ -8,10 +8,17 @@ import {
   Crown,
   Zap,
   Target,
-  Clock
+  Clock,
+  AlertTriangle,
+  Settings,
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react'
 import { useTribes } from '../hooks/useTribes'
-import { Badge } from '../services/tribesService'
+import { TribesIntegration } from '../services/tribesService'
+import { Badge } from '../services/registryService'
+import { getConfigurationErrorMessages, tribesConfigValidator } from '../utils/tribesConfig'
+import TribesConfigTester from './TribesConfigTester'
 import toast from 'react-hot-toast'
 
 const TribesDashboard = () => {
@@ -23,10 +30,28 @@ const TribesDashboard = () => {
     joinEvent,
     convertPointsToTokens,
     getClimateDAOTokenAddress,
-    createClimateDAOToken
+    createClimateDAOToken,
+    retryConfiguration
   } = useTribes()
   const [selectedTab, setSelectedTab] = useState<'profile' | 'events' | 'leaderboard' | 'tokens'>('profile')
   const [tokenAddress, setTokenAddress] = useState<string | null>(null)
+  const [configStatus, setConfigStatus] = useState<'checking' | 'valid' | 'invalid'>('checking')
+  const [showConfigTester, setShowConfigTester] = useState(false)
+
+  // Check configuration status on mount
+  useEffect(() => {
+    const checkConfiguration = async () => {
+      try {
+        const status = tribesConfigValidator.getConfigurationStatus()
+        setConfigStatus(status.isValid ? 'valid' : 'invalid')
+      } catch (error) {
+        console.error('Configuration check failed:', error)
+        setConfigStatus('invalid')
+      }
+    }
+
+    checkConfiguration()
+  }, [])
 
   const getRarityColor = (rarity: Badge['rarity']) => {
     switch (rarity) {
@@ -73,7 +98,118 @@ const TribesDashboard = () => {
     }
   }
 
-  if (isLoading) {
+  const handleRetryConfiguration = async () => {
+    try {
+      setConfigStatus('checking')
+      await retryConfiguration()
+      const status = tribesConfigValidator.getConfigurationStatus()
+      setConfigStatus(status.isValid ? 'valid' : 'invalid')
+      if (status.isValid) {
+        toast.success('Configuration is now valid!')
+      }
+    } catch (error) {
+      console.error('Configuration retry failed:', error)
+      setConfigStatus('invalid')
+      toast.error('Configuration retry failed. Please check your settings.')
+    }
+  }
+
+  const handleTestConfiguration = async () => {
+    try {
+      const result = await TribesIntegration.testTribesConnection()
+      if (result.success) {
+        toast.success('Configuration test passed!')
+      } else {
+        toast.error(`Configuration test failed: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Configuration test failed:', error)
+      toast.error('Configuration test failed. Please check your settings.')
+    }
+  }
+
+  // Show configuration error if invalid
+  if (configStatus === 'invalid') {
+    const configStatus = tribesConfigValidator.getConfigurationStatus()
+    const errorInfo = getConfigurationErrorMessages(configStatus)
+    
+    return (
+      <div className="space-y-6">
+        <div className="card border-red-200 bg-red-50">
+          <div className="flex items-start space-x-3">
+            <AlertTriangle className="w-6 h-6 text-red-600 mt-1" />
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-red-900 mb-2">{errorInfo.title}</h3>
+              <p className="text-red-700 mb-4">{errorInfo.message}</p>
+              
+              {errorInfo.instructions.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-medium text-red-900 mb-2">Setup Instructions:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
+                    {errorInfo.instructions.map((instruction, index) => (
+                      <li key={index}>{instruction}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {errorInfo.links.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-medium text-red-900 mb-2">Helpful Links:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {errorInfo.links.map((link, index) => (
+                      <a
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 text-sm text-red-600 hover:text-red-800 underline"
+                      >
+                        <span>{link.text}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleRetryConfiguration}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Retry Configuration</span>
+                </button>
+                
+                {import.meta.env.DEV && (
+                  <>
+                    <button
+                      onClick={handleTestConfiguration}
+                      className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Test Configuration</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowConfigTester(!showConfigTester)}
+                      className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>{showConfigTester ? 'Hide' : 'Show'} Config Tester</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoading || configStatus === 'checking') {
     return (
       <div className="card">
         <div className="animate-pulse">
@@ -96,9 +232,11 @@ const TribesDashboard = () => {
             <h2 className="text-2xl font-bold text-gray-900">Tribes OS Dashboard</h2>
             <p className="text-gray-600">Community governance and engagement platform</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <Trophy className="w-6 h-6 text-primary-600" />
-            <span className="text-sm font-medium text-gray-600">Level {userProfile?.level || 1}</span>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Trophy className="w-6 h-6 text-primary-600" />
+              <span className="text-sm font-medium text-gray-600">Level {userProfile?.level || 1}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -147,7 +285,7 @@ const TribesDashboard = () => {
                 <div>
                   <h4 className="text-xl font-semibold">{userProfile.username}</h4>
                   <p className="text-gray-600">{userProfile.address.slice(0, 6)}...{userProfile.address.slice(-4)}</p>
-                  <p className="text-sm text-gray-500">Joined {userProfile.joinedAt.toLocaleDateString()}</p>
+                  <p className="text-sm text-gray-500">Joined {new Date(userProfile.joinedAt).toLocaleDateString()}</p>
                 </div>
               </div>
 
@@ -433,6 +571,9 @@ const TribesDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Dev-only Config Tester */}
+      {import.meta.env.DEV && showConfigTester && <TribesConfigTester />}
     </div>
   )
 }

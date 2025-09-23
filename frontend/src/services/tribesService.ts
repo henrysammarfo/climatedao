@@ -1,6 +1,31 @@
 // Real Tribes SDK Integration Service with Fallbacks
 import { AstrixSDK } from '@wasserstoff/tribes-sdk'
 import { ethers } from 'ethers'
+import { registryService, Badge } from './registryService'
+import { tribesConfigValidator } from '../utils/tribesConfig'
+
+// Configuration interfaces
+export interface TribesConfig {
+  apiKey: string
+  contractAddresses: {
+    roleManager: string
+    tribeController: string
+    astrixToken: string
+    tokenDispenser: string
+    astrixPointSystem: string
+    profileNFTMinter: string
+  }
+  chainId: number
+  tribeId: number
+  verbose: boolean
+}
+
+export interface ConfigurationStatus {
+  isValid: boolean
+  errors: string[]
+  warnings: string[]
+  missingFields: string[]
+}
 
 export interface UserProfile {
   id: string
@@ -10,20 +35,11 @@ export interface UserProfile {
   xp: number
   level: number
   badges: Badge[]
-  joinedAt: Date
+  joinedAt: number // Unix timestamp in milliseconds
   contributions: number
   role?: string
 }
 
-export interface Badge {
-  id: string
-  name: string
-  description: string
-  icon: string
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
-  earnedAt: Date
-  category: 'governance' | 'contribution' | 'community' | 'achievement'
-}
 
 export interface Event {
   id: string
@@ -55,53 +71,140 @@ export interface GovernanceAction {
  */
 export class TribesIntegration {
   private static sdk: AstrixSDK | null = null
-  private static tribeId = parseInt((import.meta as any).env?.VITE_TRIBES_TRIBE_ID || '1')
-  private static users = new Map<string, UserProfile>()
+  private static tribeId = parseInt(import.meta.env.VITE_TRIBES_TRIBE_ID || '1')
   private static events: Event[] = []
   private static governanceActions: GovernanceAction[] = []
+  private static configStatus: ConfigurationStatus | null = null
+
+  /**
+   * Validate Tribes SDK configuration using the utils validator
+   */
+  static validateTribesConfiguration(): ConfigurationStatus {
+    return tribesConfigValidator.getConfigurationStatus()
+  }
+
+  /**
+   * Get validated Tribes configuration
+   */
+  static getTribesConfig(): TribesConfig {
+    const status = tribesConfigValidator.getConfigurationStatus()
+    if (!status.isValid) {
+      throw new Error(`Tribes configuration is invalid: ${status.errors.join(', ')}`)
+    }
+
+    const contractAddressesStr = import.meta.env.VITE_TRIBES_CONTRACT_ADDRESSES
+    let contractAddresses = {
+      roleManager: '0x123...',
+      tribeController: '0x456...',
+      astrixToken: '0x789...',
+      tokenDispenser: '0xabc...',
+      astrixPointSystem: '0xdef...',
+      profileNFTMinter: '0xghi...'
+    }
+
+    if (contractAddressesStr) {
+      contractAddresses = JSON.parse(contractAddressesStr)
+    }
+
+    return {
+      apiKey: import.meta.env.VITE_TRIBES_API_KEY,
+      contractAddresses,
+      chainId: parseInt(import.meta.env.VITE_XDC_CHAIN_ID || '51'),
+      tribeId: parseInt(import.meta.env.VITE_TRIBES_TRIBE_ID || '1'),
+      verbose: import.meta.env.VITE_TRIBES_VERBOSE === 'true'
+    }
+  }
+
+  /**
+   * Test Tribes SDK connection
+   */
+  static async testTribesConnection(): Promise<{ success: boolean; error?: string; details?: any }> {
+    try {
+      const config = this.getTribesConfig()
+      
+      // Test basic configuration
+      if (!config.apiKey) {
+        return { success: false, error: 'API key not configured' }
+      }
+
+      if (!window.ethereum) {
+        return { success: false, error: 'No wallet provider found' }
+      }
+
+      // Test SDK initialization
+      const testSdk = new AstrixSDK({
+        provider: window.ethereum,
+        chainId: config.chainId,
+        contracts: config.contractAddresses,
+        verbose: config.verbose
+      })
+
+      await testSdk.init()
+      
+      return { 
+        success: true, 
+        details: {
+          chainId: config.chainId,
+          tribeId: config.tribeId,
+          contractCount: Object.keys(config.contractAddresses).length
+        }
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
 
   /**
    * Initialize the Tribes SDK
    */
   static async initialize(): Promise<void> {
     try {
+      // Validate configuration first
+      const status = tribesConfigValidator.getConfigurationStatus()
+      if (!status.isValid) {
+        const errorMessage = `Tribes SDK configuration is invalid:\n${status.errors.join('\n')}\n\nPlease check your environment variables and ensure all required Tribes configuration is set up correctly.`
+        throw new Error(errorMessage)
+      }
+
       if (!window.ethereum) {
-        throw new Error('No wallet provider found')
+        throw new Error('No wallet provider found. Please install MetaMask or another Web3 wallet.')
       }
 
-      // Get contract addresses from environment
-      const contractAddressesStr = (import.meta as any).env?.VITE_TRIBES_CONTRACT_ADDRESSES
-      let contractAddresses = {
-        roleManager: '0x123...',
-        tribeController: '0x456...',
-        astrixToken: '0x789...',
-        tokenDispenser: '0xabc...',
-        astrixPointSystem: '0xdef...',
-        profileNFTMinter: '0xghi...'
-      }
+      const config = this.getTribesConfig()
 
-      if (contractAddressesStr) {
-        try {
-          contractAddresses = JSON.parse(contractAddressesStr)
-        } catch (error) {
-          console.warn('Failed to parse Tribes contract addresses from environment')
-        }
-      }
-
-      // Initialize SDK with XDC Apothem Testnet configuration
+      // Initialize SDK with validated configuration
       this.sdk = new AstrixSDK({
         provider: window.ethereum,
-        chainId: parseInt((import.meta as any).env?.VITE_XDC_CHAIN_ID || '51'),
-        contracts: contractAddresses,
-        verbose: true
+        chainId: config.chainId,
+        contracts: config.contractAddresses,
+        verbose: config.verbose
       })
 
       await this.sdk.init()
-      console.log('Tribes SDK initialized successfully')
+      
+      // Load registry from persistent storage
+      await registryService.loadRegistry()
+      
+      console.log('Tribes SDK initialized successfully with configuration:', {
+        chainId: config.chainId,
+        tribeId: config.tribeId,
+        contractCount: Object.keys(config.contractAddresses).length
+      })
     } catch (error) {
       console.error('Failed to initialize Tribes SDK:', error)
-      throw new Error('Tribes SDK initialization failed - required for ClimateDAO functionality')
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      throw new Error(`Tribes SDK initialization failed: ${errorMessage}`)
     }
+  }
+
+  /**
+   * Get current configuration status
+   */
+  static getConfigurationStatus(): ConfigurationStatus | null {
+    return this.configStatus
   }
 
   /**
@@ -137,6 +240,15 @@ export class TribesIntegration {
         await this.initialize()
       }
 
+      // Check if user is already registered
+      const isRegistered = await registryService.isWalletRegistered(address)
+      if (isRegistered) {
+        const registration = await registryService.getUserRegistration(address)
+        if (registration.userProfile) {
+          return registration.userProfile as UserProfile
+        }
+      }
+
       // Join the ClimateDAO tribe
       try {
         const result = await (this.sdk!.tribes as any).joinTribe(this.tribeId)
@@ -160,16 +272,30 @@ export class TribesIntegration {
         xp: points,
         level: Math.floor(points / 1000) + 1,
         badges: [],
-        joinedAt: new Date(),
+        joinedAt: Date.now(),
         contributions: 0,
         role: 'member'
       }
 
-      this.users.set(address, user)
+      // Persist user registration and profile
+      await registryService.registerWallet(address, user)
+      
       return user
     } catch (error) {
       console.error('Failed to initialize user in Tribes:', error)
       throw new Error('Failed to initialize user in Tribes OS. Please ensure you are connected to the correct network and have the necessary permissions.')
+    }
+  }
+
+  /**
+   * Check if wallet is registered
+   */
+  static async isWalletRegistered(address: string): Promise<boolean> {
+    try {
+      return await registryService.isWalletRegistered(address)
+    } catch (error) {
+      console.error('Error checking wallet registration:', error)
+      return false
     }
   }
 
@@ -182,6 +308,13 @@ export class TribesIntegration {
         await this.initialize()
       }
 
+      // First check persistent storage
+      const registration = await registryService.getUserRegistration(address)
+      if (registration.isRegistered && registration.userProfile) {
+        return registration.userProfile as UserProfile
+      }
+
+      // Fallback to Tribes SDK
       // Get tribe members to check if user is a member
       let members: any[] = []
       try {
@@ -194,7 +327,7 @@ export class TribesIntegration {
       const member = members.find((m: any) => m.address.toLowerCase() === address.toLowerCase())
       
       if (!member) {
-        return this.users.get(address) || null
+        return null
       }
 
       // Get user points from the tribe
@@ -205,20 +338,25 @@ export class TribesIntegration {
         console.log('Could not get points:', error)
       }
 
-      return {
+      const userProfile: UserProfile = {
         id: `user_${address}`,
         address,
         username: member.username || `User_${address.slice(0, 6)}`,
         xp: points,
         level: Math.floor(points / 1000) + 1,
         badges: [],
-        joinedAt: new Date(member.joinedAt || Date.now()),
+        joinedAt: member.joinedAt || Date.now(),
         contributions: 0,
         role: member.role || 'member'
       }
+
+      // Persist the profile for future use
+      await registryService.registerWallet(address, userProfile)
+
+      return userProfile
     } catch (error) {
       console.error('Failed to get user profile from Tribes:', error)
-      return this.users.get(address) || null
+      return null
     }
   }
 
@@ -241,11 +379,12 @@ export class TribesIntegration {
         throw error
       }
 
-      // Update local tracking
-      const user = this.users.get(address)
-      if (user) {
-        user.xp += amount
-        user.level = Math.floor(user.xp / 1000) + 1
+      // Update persistent storage
+      const registration = await registryService.getUserRegistration(address)
+      if (registration.userProfile) {
+        registration.userProfile.xp += amount
+        registration.userProfile.level = Math.floor(registration.userProfile.xp / 1000) + 1
+        await registryService.updateUserProfile(address, registration.userProfile)
       }
     } catch (error) {
       console.error('Failed to award XP through Tribes SDK:', error)
@@ -256,14 +395,19 @@ export class TribesIntegration {
    * Award badge to user
    */
   static async awardBadge(address: string, badge: Badge): Promise<void> {
-    const user = this.users.get(address)
-    if (!user) return
+    const registration = await registryService.getUserRegistration(address)
+    if (!registration.userProfile) return
+
+    const user = registration.userProfile
 
     // Check if user already has this badge
     if (user.badges.some(b => b.id === badge.id)) return
 
     user.badges.push(badge)
     user.contributions++
+
+    // Persist the updated profile
+    await registryService.updateUserProfile(address, user)
 
     // Award bonus XP for rare badges
     const xpBonus = this.getBadgeXPBonus(badge.rarity)
@@ -359,7 +503,7 @@ export class TribesIntegration {
           xp: entry.points,
           level: Math.floor(entry.points / 1000) + 1,
           badges: [],
-          joinedAt: new Date(),
+          joinedAt: Date.now(),
           contributions: 0,
           role: 'member'
         }))
@@ -369,9 +513,26 @@ export class TribesIntegration {
       }
     } catch (error) {
       console.error('Failed to get points leaderboard:', error)
-      return Array.from(this.users.values())
-        .sort((a, b) => b.xp - a.xp)
-        .slice(0, limit)
+      
+      // Fallback to persistent storage
+      try {
+        const allWallets = await registryService.getAllRegisteredWallets()
+        const profiles: UserProfile[] = []
+        
+        for (const wallet of allWallets) {
+          const registration = await registryService.getUserRegistration(wallet)
+          if (registration.userProfile) {
+            profiles.push(registration.userProfile as UserProfile)
+          }
+        }
+        
+        return profiles
+          .sort((a, b) => b.xp - a.xp)
+          .slice(0, limit)
+      } catch (fallbackError) {
+        console.error('Failed to get leaderboard from persistent storage:', fallbackError)
+        return []
+      }
     }
   }
 
@@ -438,7 +599,7 @@ export class TribesIntegration {
         description: 'Cast your first vote in ClimateDAO governance',
         icon: '🗳️',
         rarity: 'common',
-        earnedAt: new Date(),
+        earnedAt: Date.now(),
         category: 'governance'
       },
       {
@@ -447,7 +608,7 @@ export class TribesIntegration {
         description: 'Create your first successful proposal',
         icon: '📝',
         rarity: 'rare',
-        earnedAt: new Date(),
+        earnedAt: Date.now(),
         category: 'governance'
       },
       {
@@ -456,7 +617,7 @@ export class TribesIntegration {
         description: 'Contribute significantly to climate action',
         icon: '🌱',
         rarity: 'epic',
-        earnedAt: new Date(),
+        earnedAt: Date.now(),
         category: 'achievement'
       },
       {
@@ -465,7 +626,7 @@ export class TribesIntegration {
         description: 'Reach the highest level of community participation',
         icon: '👑',
         rarity: 'legendary',
-        earnedAt: new Date(),
+        earnedAt: Date.now(),
         category: 'community'
       }
     ]

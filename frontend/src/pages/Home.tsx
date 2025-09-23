@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useDAOStats } from '../hooks/useContracts'
 import { useTribes } from '../hooks/useTribes'
+import { useProposalEvents } from '../hooks/useProposalEvents'
 
 const Home = () => {
   const { totalProposals, formattedFunds } = useDAOStats()
@@ -40,8 +41,9 @@ const Home = () => {
     },
   ]
 
-  // Remove mock proposals - will be replaced with real data from contracts
-  const recentProposals: any[] = []
+  // Get real proposals from the blockchain
+  const { proposals } = useProposalEvents()
+  const recentProposals = proposals.slice(0, 3) // Show latest 3 proposals
 
   return (
     <div className="space-y-16">

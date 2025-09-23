@@ -11,21 +11,21 @@ export const useAI = () => {
     setAnalysis(null)
 
     try {
-      toast.loading('Analyzing proposal with AI...', { id: 'ai-analysis' })
+      toast.loading('Connecting to AI service...', { id: 'ai-analysis' })
       
       const result = await AIService.analyzeProposal(proposal)
       setAnalysis(result)
       
-      toast.success('AI analysis completed!', { id: 'ai-analysis' })
+      toast.success('AI analysis completed successfully!', { id: 'ai-analysis' })
       return result
     } catch (error) {
       console.error('AI analysis error:', error)
-      toast.error('AI analysis failed. Using fallback analysis.', { id: 'ai-analysis' })
+      const errorMessage = error instanceof Error ? error.message : 'AI analysis failed'
+      toast.error(errorMessage, { id: 'ai-analysis', duration: 5000 })
       
-      // Still return fallback analysis
-      const fallbackResult = AIService.getFallbackAnalysis(proposal)
-      setAnalysis(fallbackResult)
-      return fallbackResult
+      // No fallback - let the error bubble up to the UI
+      setAnalysis(null)
+      throw error
     } finally {
       setIsAnalyzing(false)
     }
@@ -36,11 +36,9 @@ export const useAI = () => {
       return await AIService.getProjectSuggestions(category, location)
     } catch (error) {
       console.error('Failed to get project suggestions:', error)
-      return [
-        'Solar panel installation program for residential buildings',
-        'Community garden and urban farming initiative',
-        'Renewable energy education and training center'
-      ]
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get AI suggestions'
+      toast.error(errorMessage, { duration: 4000 })
+      throw error // No fallback suggestions
     }
   }, [])
 
@@ -49,19 +47,9 @@ export const useAI = () => {
       return await AIService.getCategoryInsights(category)
     } catch (error) {
       console.error('Failed to get category insights:', error)
-      return {
-        averageImpact: 70,
-        commonChallenges: [
-          'Regulatory approval delays',
-          'Funding and resource constraints',
-          'Community engagement challenges'
-        ],
-        successFactors: [
-          'Strong community support',
-          'Clear project timeline',
-          'Experienced project team'
-        ]
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get AI insights'
+      toast.error(errorMessage, { duration: 4000 })
+      throw error // No fallback insights
     }
   }, [])
 

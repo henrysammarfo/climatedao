@@ -1,42 +1,82 @@
 import { ArrowLeft, Calendar, MapPin, Globe, TrendingUp, Users, DollarSign } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAccount } from 'wagmi'
-import { useProposal, useVote } from '../hooks/useContracts'
+import { useProposal } from '../hooks/useContracts'
 import { useTribes } from '../hooks/useTribes'
+import { useProposalStatusMonitor } from '../hooks/useProposalExecution'
+import { useTokenBalance } from '../hooks/useTokenBalance'
+import { VotingPanel } from '../components/VotingPanel'
+import { ProposalExecutionPanel } from '../components/ProposalExecutionPanel'
+import ContextualFaucet from '../components/ContextualFaucet'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
+import { useState, useEffect } from 'react'
 
 const ProposalDetail = () => {
   const navigate = useNavigate()
   const { id } = useParams()
   const { address } = useAccount()
   const { proposal, isLoading } = useProposal(id ? parseInt(id) : 0)
-  const { vote, isPending: isVoting } = useVote()
   const { trackGovernanceAction } = useTribes()
+  const { statusEvents, isConnected: statusConnected } = useProposalStatusMonitor()
+  const { getActionRequirements } = useTokenBalance()
+  const [currentProposal, setCurrentProposal] = useState(proposal)
+  
+  // Check voting requirements
+  const votingRequirements = getActionRequirements('vote')
 
-  const handleVote = async (choice: 'for' | 'against' | 'abstain') => {
-    if (!address) {
-      toast.error('Please connect your wallet first')
-      return
+  // Update proposal when status changes
+  useEffect(() => {
+    if (proposal) {
+      setCurrentProposal(proposal)
     }
+  }, [proposal])
 
-    if (!proposal) {
-      toast.error('Proposal not found')
-      return
-    }
-
-    try {
-      const voteChoice = choice === 'for' ? 1 : choice === 'against' ? 0 : 2
-      await vote(1, voteChoice) // Using proposal ID 1 as placeholder
+  // Monitor status changes for this specific proposal
+  useEffect(() => {
+    if (statusEvents.length > 0 && proposal) {
+      const relevantEvent = statusEvents.find(event => 
+        event.proposalId === proposal.id
+      )
       
+      if (relevantEvent) {
+        console.log('Proposal status changed:', relevantEvent)
+        
+        // Update proposal status based on event
+        const statusMap: { [key: number]: string } = {
+          0: 'Active',
+          1: 'Passed', 
+          2: 'Rejected',
+          3: 'Executed',
+          4: 'Cancelled'
+        }
+        
+        const newStatus = statusMap[relevantEvent.newStatus] || proposal.status
+        
+        setCurrentProposal((prev: any) => prev ? {
+          ...prev,
+          status: newStatus
+        } : null)
+
+        // Show notification
+        toast.success(`Proposal status updated to ${newStatus}`)
+      }
+    }
+  }, [statusEvents, proposal])
+
+  const handleVoteCast = async () => {
+    if (currentProposal) {
       // Track governance action in Tribes
-      await trackGovernanceAction('vote', `Voted ${choice} on proposal #1`)
-      
-      toast.success(`Vote cast: ${choice}`)
-    } catch (error) {
-      console.error('Voting error:', error)
-      toast.error('Failed to cast vote')
+      try {
+        await trackGovernanceAction('vote', `Voted on proposal #${currentProposal.id}`)
+      } catch (error) {
+        console.error('Failed to track governance action:', error)
+      }
     }
+  }
+
+  const handleProposalStatusUpdate = (updatedProposal: any) => {
+    setCurrentProposal(updatedProposal)
   }
 
   if (isLoading) {
@@ -47,32 +87,24 @@ const ProposalDetail = () => {
     )
   }
 
-  // Since we can't fetch individual proposals from the contract yet,
-  // we'll show a placeholder proposal for demonstration
-  const placeholderProposal = {
-    id: 1,
-    title: 'Sample Environmental Project',
-    description: 'This is a placeholder displayProposal. In a real implementation, this would be fetched from the blockchain.',
-    category: 'Renewable Energy',
-    status: 'Active',
-    location: 'Global',
-    duration: 365,
-    website: 'https://example.com',
-    proposer: '0x1234...5678',
-    endDate: '2024-12-31',
-    daysLeft: 30,
-    images: [],
-    co2Reduction: 1000,
-    energyGeneration: 5000,
-    jobsCreated: 50,
-    impactScore: 85,
-    requestedAmount: '$100,000',
-    forVotes: 150,
-    againstVotes: 25,
-    votes: 175
+  if (!currentProposal) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Proposal Not Found</h2>
+          <p className="text-gray-600 mb-6">The proposal you're looking for doesn't exist or has been removed.</p>
+          <button
+            onClick={() => navigate('/proposals')}
+            className="btn-primary"
+          >
+            View All Proposals
+          </button>
+        </div>
+      </div>
+    )
   }
 
-  const displayProposal = proposal || placeholderProposal
+  const displayProposal = currentProposal
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -214,48 +246,26 @@ const ProposalDetail = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Voting */}
-          {displayProposal.status === 'Active' && address && (
-            <div className="card">
-              <h3 className="text-lg font-semibold mb-4">Cast Your Vote</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => handleVote('for')}
-                  disabled={isVoting}
-                  className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isVoting ? 'Voting...' : 'Vote For'}
-                </button>
-                <button
-                  onClick={() => handleVote('against')}
-                  disabled={isVoting}
-                  className="w-full btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isVoting ? 'Voting...' : 'Vote Against'}
-                </button>
-                <button
-                  onClick={() => handleVote('abstain')}
-                  disabled={isVoting}
-                  className="w-full btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isVoting ? 'Voting...' : 'Abstain'}
-                </button>
-              </div>
-            </div>
+          {/* Token Requirements for Voting */}
+          {address && displayProposal.status === 'Active' && !votingRequirements.canVote && (
+            <ContextualFaucet 
+              mode="inline" 
+              action="vote"
+              className="mb-4"
+            />
           )}
           
-          {displayProposal.status === 'Active' && !address && (
-            <div className="card">
-              <h3 className="text-lg font-semibold mb-4">Connect Wallet to Vote</h3>
-              <p className="text-gray-600 mb-4">Please connect your wallet to participate in voting.</p>
-              <button
-                onClick={() => navigate('/')}
-                className="w-full btn-primary"
-              >
-                Connect Wallet
-              </button>
-            </div>
-          )}
+          {/* Voting Panel */}
+          <VotingPanel 
+            proposal={displayProposal} 
+            onVoteCast={handleVoteCast}
+          />
+
+          {/* Execution Panel */}
+          <ProposalExecutionPanel 
+            proposal={displayProposal}
+            onStatusUpdate={handleProposalStatusUpdate}
+          />
 
           {/* Funding Info */}
           <div className="card">
@@ -276,42 +286,15 @@ const ProposalDetail = () => {
             </div>
           </div>
 
-          {/* Voting Results */}
-          <div className="card">
-            <h3 className="text-lg font-semibold mb-4">Voting Results</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>For</span>
-                  <span>{displayProposal.forVotes} votes</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full" 
-                    style={{ width: `${(displayProposal.forVotes / displayProposal.votes) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Against</span>
-                  <span>{displayProposal.againstVotes} votes</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-red-500 h-2 rounded-full" 
-                    style={{ width: `${(displayProposal.againstVotes / displayProposal.votes) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-              <div className="pt-2 border-t">
-                <div className="flex justify-between text-sm">
-                  <span>Total Votes:</span>
-                  <span className="font-medium">{displayProposal.votes.toLocaleString()}</span>
-                </div>
+          {/* Real-time Status Indicator */}
+          {statusConnected && (
+            <div className="card">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-600">Real-time status monitoring active</span>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

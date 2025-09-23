@@ -10,16 +10,44 @@ import {
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import TribesDashboard from '../components/TribesDashboard'
+import { TribesErrorBoundary, TribesStatusIndicator } from '../components/TribesErrorHandler'
 import { useTribes } from '../hooks/useTribes'
+import { useAchievements } from '../hooks/useAchievements'
 import { useStakingInfo, useDAOStats, useUserProposals, useUserVotes } from '../hooks/useContracts'
+import AchievementCard from '../components/AchievementCard'
+import AchievementNotification from '../components/AchievementNotification'
+import { useState } from 'react'
 
 const Dashboard = () => {
   const { address } = useAccount()
-  const { userProfile } = useTribes()
+  const { userProfile, isConfigurationValid } = useTribes()
   const { formattedStaked, formattedRewards } = useStakingInfo()
   const { } = useDAOStats()
   const { userProposals } = useUserProposals(address)
-  const { userVotes } = useUserVotes(address)
+  const { userVotes } = useUserVotes()
+  
+  // Achievement system
+  const { 
+    isLoading: achievementsLoading, 
+    getAchievementStats,
+    getAchievementsByCategory,
+    filterAchievements,
+    sortAchievements,
+    markAchievementAsViewed,
+    unlockedAchievements,
+    dismissAchievementNotification
+  } = useAchievements()
+  
+  const [achievementFilter, setAchievementFilter] = useState<'all' | 'earned' | 'locked' | 'in_progress'>('all')
+  const [achievementSort, setAchievementSort] = useState<'name' | 'category' | 'progress' | 'earned_date' | 'xp_reward'>('progress')
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  
+  const achievementStats = getAchievementStats()
+  const achievementsByCategory = getAchievementsByCategory()
+  const filteredAchievements = sortAchievements(
+    filterAchievements(achievementFilter, selectedCategory || undefined),
+    achievementSort
+  )
   
   const stats = [
     { label: 'Your Proposals', value: userProposals?.length.toString() || '0', icon: FileText, change: 'Active proposals' },
@@ -54,33 +82,9 @@ const Dashboard = () => {
     })
   }
 
-  // Real achievements based on user actions
-  const achievements = [
-    {
-      title: 'Climate Champion',
-      description: 'Voted on 50+ environmental proposals',
-      icon: Award,
-      earned: (userVotes?.length || 0) >= 50,
-    },
-    {
-      title: 'Proposal Creator',
-      description: 'Created your first proposal',
-      icon: FileText,
-      earned: (userProposals?.length || 0) > 0,
-    },
-    {
-      title: 'Community Builder',
-      description: 'Invited 10+ community members',
-      icon: Users,
-      earned: false, // This would need to be tracked in the user profile
-    },
-    {
-      title: 'Impact Tracker',
-      description: 'Tracked 100+ project outcomes',
-      icon: Target,
-      earned: false, // This would need to be tracked in the user profile
-    },
-  ]
+  // Achievement notification state
+  const [showAchievementNotification, setShowAchievementNotification] = useState(false)
+  const [currentAchievement, setCurrentAchievement] = useState<any>(null)
 
   return (
     <div className="space-y-8">
@@ -140,42 +144,88 @@ const Dashboard = () => {
         {/* Achievements */}
         <div>
           <div className="card">
-            <h2 className="text-xl font-semibold mb-6">Achievements</h2>
-            <div className="space-y-4">
-              {achievements.map((achievement, index) => {
-                const Icon = achievement.icon
-                return (
-                  <div key={index} className={`flex items-center space-x-3 p-3 rounded-lg ${
-                    achievement.earned ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
-                  }`}>
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      achievement.earned ? 'bg-green-100' : 'bg-gray-100'
-                    }`}>
-                      <Icon className={`w-5 h-5 ${
-                        achievement.earned ? 'text-green-600' : 'text-gray-400'
-                      }`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${
-                        achievement.earned ? 'text-green-900' : 'text-gray-500'
-                      }`}>
-                        {achievement.title}
-                      </p>
-                      <p className={`text-xs ${
-                        achievement.earned ? 'text-green-700' : 'text-gray-400'
-                      }`}>
-                        {achievement.description}
-                      </p>
-                    </div>
-                    {achievement.earned && (
-                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xs">✓</span>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Achievements</h2>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>{achievementStats.earnedAchievements}/{achievementStats.totalAchievements}</span>
+                <span>•</span>
+                <span>{Math.round(achievementStats.completionPercentage)}%</span>
+              </div>
             </div>
+            
+            {/* Achievement Filters */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <select
+                value={achievementFilter}
+                onChange={(e) => setAchievementFilter(e.target.value as any)}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1"
+              >
+                <option value="all">All</option>
+                <option value="earned">Earned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="locked">Locked</option>
+              </select>
+              
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1"
+              >
+                <option value="">All Categories</option>
+                {Object.keys(achievementsByCategory).map(category => (
+                  <option key={category} value={category}>
+                    {category.replace('_', ' ').toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              
+              <select
+                value={achievementSort}
+                onChange={(e) => setAchievementSort(e.target.value as any)}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1"
+              >
+                <option value="progress">Progress</option>
+                <option value="name">Name</option>
+                <option value="category">Category</option>
+                <option value="xp_reward">XP Reward</option>
+                <option value="earned_date">Date Earned</option>
+              </select>
+            </div>
+
+            {/* Achievements List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {achievementsLoading ? (
+                <div className="text-center py-8 text-gray-500">
+                  Loading achievements...
+                </div>
+              ) : filteredAchievements.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No achievements found
+                </div>
+              ) : (
+                filteredAchievements.slice(0, 6).map((achievement) => (
+                  <AchievementCard
+                    key={achievement.id}
+                    achievement={achievement}
+                    isEarned={achievement.isEarned}
+                    showProgress={true}
+                    onClick={() => {
+                      setCurrentAchievement(achievement)
+                      setShowAchievementNotification(true)
+                    }}
+                    className="hover:shadow-md transition-shadow"
+                  />
+                ))
+              )}
+            </div>
+            
+            {filteredAchievements.length > 6 && (
+              <div className="mt-4 text-center">
+                <button className="text-sm text-primary-600 hover:text-primary-700">
+                  View All Achievements
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -207,12 +257,49 @@ const Dashboard = () => {
 
       {/* Tribes OS Integration */}
       <div className="card">
-        <div className="flex items-center space-x-2 mb-6">
-          <Crown className="w-6 h-6 text-primary-600" />
-          <h2 className="text-xl font-semibold">Tribes OS Community</h2>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <Crown className="w-6 h-6 text-primary-600" />
+            <h2 className="text-xl font-semibold">Tribes OS Community</h2>
+          </div>
+          <TribesStatusIndicator 
+            status={isConfigurationValid ? 'connected' : 'configuration-error'} 
+          />
         </div>
-        <TribesDashboard />
+        <TribesErrorBoundary>
+          <TribesDashboard />
+        </TribesErrorBoundary>
       </div>
+
+      {/* Achievement Notifications */}
+      {unlockedAchievements.map((achievement, index) => (
+        <AchievementNotification
+          key={`${achievement.id}-${index}`}
+          achievement={achievement}
+          onDismiss={() => {
+            dismissAchievementNotification(achievement.id)
+            markAchievementAsViewed(achievement.id)
+          }}
+          autoDismiss={true}
+          autoDismissDelay={5000}
+          showSound={true}
+          className={`top-${4 + index * 20} right-4`}
+        />
+      ))}
+      
+      {showAchievementNotification && currentAchievement && (
+        <AchievementNotification
+          achievement={currentAchievement}
+          onDismiss={() => {
+            setShowAchievementNotification(false)
+            setCurrentAchievement(null)
+            markAchievementAsViewed(currentAchievement.id)
+          }}
+          autoDismiss={true}
+          autoDismissDelay={5000}
+          showSound={true}
+        />
+      )}
     </div>
   )
 }

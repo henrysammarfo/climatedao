@@ -1,7 +1,8 @@
 import axios from 'axios'
+import { AIAnalytics } from './aiAnalytics'
 
 const HF_API_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3'
-const HF_TOKEN = (import.meta as any).env?.VITE_HF_API_KEY
+const HF_TOKEN = import.meta.env.VITE_HF_API_KEY
 
 export interface ProposalAnalysis {
   impactScore: number // 0-100
@@ -25,6 +26,65 @@ export interface ProposalData {
 
 export class AIService {
   /**
+   * Helper function to make requests with retry logic for transient failures
+   */
+  private static async requestWithRetry<T>(
+    requestFn: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> {
+    let lastError: Error | null = null
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await requestFn()
+      } catch (error) {
+        lastError = error as Error
+        
+        // Don't retry on the last attempt
+        if (attempt === maxRetries) {
+          break
+        }
+        
+        // Check if this is a retryable error
+        if (axios.isAxiosError(error)) {
+          const status = error.response?.status
+          const code = error.code
+          
+          // Retry on transient errors
+          if (
+            code === 'ECONNABORTED' ||
+            status === 429 ||
+            status === 503 ||
+            (status && status >= 500)
+          ) {
+            // Calculate delay with exponential backoff
+            const delay = baseDelay * Math.pow(2, attempt)
+            
+            // For 429 errors, respect Retry-After header if present
+            if (status === 429 && error.response?.headers['retry-after']) {
+              const retryAfter = parseInt(error.response.headers['retry-after'])
+              if (!isNaN(retryAfter)) {
+                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000))
+                continue
+              }
+            }
+            
+            console.log(`Request failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            continue
+          }
+        }
+        
+        // Non-retryable error, break immediately
+        break
+      }
+    }
+    
+    throw lastError || new Error('Request failed after all retry attempts')
+  }
+
+  /**
    * Analyze a proposal and generate impact metrics using Hugging Face Inference API
    */
   static async analyzeProposal(proposal: ProposalData): Promise<ProposalAnalysis> {
@@ -32,48 +92,72 @@ export class AIService {
       throw new Error('Hugging Face API key is required for AI analysis. Please configure VITE_HF_API_KEY in your environment variables.')
     }
 
+    const startTime = Date.now()
     try {
       const prompt = this.createAnalysisPrompt(proposal)
       
-      // Call Hugging Face Inference API with axios
-      const response = await axios.post(
-        HF_API_URL,
-        {
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: 1000,
-            temperature: 0.3,
-            return_full_text: false,
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${HF_TOKEN}`,
-            'Content-Type': 'application/json',
+      // Call Hugging Face Inference API with retry logic
+      const response = await this.requestWithRetry(async () => {
+        return await axios.post(
+          HF_API_URL,
+          {
+            inputs: prompt,
+            parameters: {
+              max_new_tokens: 1000,
+              temperature: 0.3,
+              return_full_text: false,
+            },
+            options: {
+              wait_for_model: true
+            }
           },
-          timeout: 30000, // 30 second timeout
-        }
-      )
+          {
+            headers: {
+              'Authorization': `Bearer ${HF_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000, // 30 second timeout
+          }
+        )
+      })
 
       const analysisText = response.data[0]?.generated_text || response.data
-      return this.parseAnalysisResponse(analysisText, proposal)
+      const result = this.parseAnalysisResponse(analysisText, proposal)
+      
+      // Track successful API call
+      const duration = Date.now() - startTime
+      AIAnalytics.trackApiCall('analyzeProposal', true, duration)
+      
+      return result
     } catch (error) {
+      // Track failed API call
+      const duration = Date.now() - startTime
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      AIAnalytics.trackApiCall('analyzeProposal', false, duration, errorMessage)
       console.error('AI analysis failed:', error)
       
-      // Handle specific error cases
+      // Handle specific error cases with detailed messages
       if (axios.isAxiosError(error)) {
+        // Extract Hugging Face error message if available
+        const hfError = error.response?.data?.error || error.response?.data?.message
+        const baseMessage = hfError ? ` ${hfError}` : ''
+        
         if (error.response?.status === 429) {
-          throw new Error('AI service rate limit exceeded. Please try again later.')
+          throw new Error(`AI service rate limit exceeded. You have exceeded the API usage limit. Please wait before making another request or upgrade your Hugging Face plan.${baseMessage}`)
         } else if (error.response?.status === 401) {
-          throw new Error('Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.')
+          throw new Error(`Invalid Hugging Face API key. Please verify your VITE_HF_API_KEY is correct and has the necessary permissions for the Mistral-7B-Instruct-v0.3 model.${baseMessage}`)
+        } else if (error.response?.status === 503) {
+          throw new Error(`AI model is currently loading. The Mistral-7B-Instruct-v0.3 model is being loaded on Hugging Face servers. Please try again in 1-2 minutes.${baseMessage}`)
         } else if (error.code === 'ECONNABORTED') {
-          throw new Error('AI service request timeout. Please try again.')
+          throw new Error(`AI service request timeout. The request took too long to complete. Please check your internet connection and try again.${baseMessage}`)
         } else if (error.response && error.response.status >= 500) {
-          throw new Error('AI service is temporarily unavailable. Please try again later.')
+          throw new Error(`Hugging Face service is temporarily unavailable. Please try again later or check the Hugging Face status page for updates.${baseMessage}`)
+        } else if (error.response?.status === 400) {
+          throw new Error(`Invalid request format. There was an issue with the request parameters. Please try again.${baseMessage}`)
         }
       }
       
-      throw new Error('AI analysis failed. Please try again or contact support.')
+      throw new Error('AI analysis failed due to an unexpected error. Please check your internet connection and try again. If the problem persists, contact support.')
     }
   }
 
@@ -106,73 +190,153 @@ Consider factors like environmental impact potential, feasibility, scalability, 
   }
 
   /**
-   * Parse the AI response into structured data
+   * Parse the AI response into structured data with enhanced validation
    */
   private static parseAnalysisResponse(text: string, _proposal: ProposalData): ProposalAnalysis {
+    console.log('Raw AI response:', text) // Debug logging
+    
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const jsonStr = jsonMatch[0]
-        const parsed = JSON.parse(jsonStr)
-        
-        return {
-          impactScore: Math.max(0, Math.min(100, parsed.impactScore || 0)),
-          co2Reduction: Math.max(0, parsed.co2Reduction || 0),
-          energyGeneration: Math.max(0, parsed.energyGeneration || 0),
-          jobsCreated: Math.max(0, parsed.jobsCreated || 0),
-          confidence: Math.max(0, Math.min(100, parsed.confidence || 0)),
-          reasoning: parsed.reasoning || 'AI analysis completed',
-          risks: Array.isArray(parsed.risks) ? parsed.risks : [],
-          recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : []
+      // Try multiple JSON extraction patterns, prioritizing fenced blocks
+      let jsonStr = ''
+      
+      // Pattern 1: JSON wrapped in markdown code blocks (prioritized)
+      const codeBlockMatch = text.match(/```(?:json)?\s*\n([\s\S]*?)\n```/)
+      if (codeBlockMatch) {
+        jsonStr = codeBlockMatch[1]
+      } else {
+        // Pattern 2: Standard JSON object (non-greedy)
+        const jsonMatch = text.match(/\{[\s\S]*?\}/)
+        if (jsonMatch) {
+          jsonStr = jsonMatch[0]
+        } else {
+          // Pattern 3: Look for JSON after common prefixes
+          const afterPrefixMatch = text.match(/(?:Here's|Here is|Analysis:|Result:)\s*\n?\s*(\{[\s\S]*?\})/i)
+          if (afterPrefixMatch) {
+            jsonStr = afterPrefixMatch[1]
+          }
         }
       }
+      
+      if (!jsonStr) {
+        throw new Error('No valid JSON found in AI response')
+      }
+      
+      console.log('Extracted JSON substring:', jsonStr) // Unit log to confirm extraction
+      const parsed = JSON.parse(jsonStr)
+      
+      // Validate and sanitize the parsed data
+      const result: ProposalAnalysis = {
+        impactScore: Math.max(0, Math.min(100, Number(parsed.impactScore) || 0)),
+        co2Reduction: Math.max(0, Number(parsed.co2Reduction) || 0),
+        energyGeneration: Math.max(0, Number(parsed.energyGeneration) || 0),
+        jobsCreated: Math.max(0, Number(parsed.jobsCreated) || 0),
+        confidence: Math.max(0, Math.min(100, Number(parsed.confidence) || 0)),
+        reasoning: String(parsed.reasoning || 'AI analysis completed').trim(),
+        risks: Array.isArray(parsed.risks) ? parsed.risks.filter((r: any) => typeof r === 'string').map((r: any) => r.trim()) : [],
+        recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations.filter((r: any) => typeof r === 'string').map((r: any) => r.trim()) : []
+      }
+      
+      // Additional validation
+      if (result.reasoning.length === 0) {
+        result.reasoning = 'AI analysis completed successfully'
+      }
+      
+      console.log('Parsed AI analysis:', result) // Debug logging
+      return result
+      
     } catch (error) {
       console.error('Failed to parse AI response:', error)
+      console.error('Response text:', text)
+      throw new Error(`Failed to parse AI response: ${error instanceof Error ? error.message : 'Unknown parsing error'}. The AI service may have returned an unexpected format.`)
     }
-
-    throw new Error('Failed to parse AI response. The AI service returned an invalid format.')
   }
 
   /**
-   * Fallback analysis when AI fails
+   * Validate AI service configuration
    */
-  static getFallbackAnalysis(proposal: ProposalData): ProposalAnalysis {
-    const categoryMultipliers = {
-      'Renewable Energy': { impact: 0.9, co2: 0.8, energy: 0.9, jobs: 0.7 },
-      'Carbon Capture': { impact: 0.95, co2: 0.95, energy: 0.1, jobs: 0.6 },
-      'Reforestation': { impact: 0.85, co2: 0.9, energy: 0.0, jobs: 0.8 },
-      'Ocean Cleanup': { impact: 0.8, co2: 0.3, energy: 0.0, jobs: 0.5 },
-      'Sustainable Agriculture': { impact: 0.75, co2: 0.6, energy: 0.2, jobs: 0.9 },
-      'Climate Education': { impact: 0.7, co2: 0.4, energy: 0.0, jobs: 0.6 },
-      'Other': { impact: 0.6, co2: 0.5, energy: 0.3, jobs: 0.5 }
+  static validateConfiguration(): { isValid: boolean; error?: string } {
+    if (!HF_TOKEN) {
+      return {
+        isValid: false,
+        error: 'Hugging Face API key is missing. Please configure VITE_HF_API_KEY in your environment variables.'
+      }
     }
 
-    const multiplier = categoryMultipliers[proposal.category as keyof typeof categoryMultipliers] || categoryMultipliers.Other
-    
-    // Base calculations
-    const baseImpact = 70
-    const baseCO2 = proposal.requestedAmount / 1000 // $1000 per ton CO2
-    const baseEnergy = proposal.category === 'Renewable Energy' ? proposal.requestedAmount / 50 : 0 // $50 per MWh
-    const baseJobs = proposal.requestedAmount / 100000 // $100k per job
+    if (typeof HF_TOKEN !== 'string' || HF_TOKEN.trim() === '') {
+      return {
+        isValid: false,
+        error: 'Hugging Face API key is empty or invalid. Please check your VITE_HF_API_KEY configuration.'
+      }
+    }
 
-    return {
-      impactScore: Math.round(baseImpact * multiplier.impact),
-      co2Reduction: Math.round(baseCO2 * multiplier.co2),
-      energyGeneration: Math.round(baseEnergy * multiplier.energy),
-      jobsCreated: Math.round(baseJobs * multiplier.jobs),
-      confidence: 75,
-      reasoning: `Fallback analysis based on project category (${proposal.category}) and industry standards. This is an estimated assessment pending detailed review.`,
-      risks: [
-        'Project execution timeline may vary',
-        'Market conditions could affect outcomes',
-        'Regulatory approval required'
-      ],
-      recommendations: [
-        'Provide detailed project timeline',
-        'Include risk mitigation strategies',
-        'Demonstrate community support'
-      ]
+    if (!HF_TOKEN.startsWith('hf_')) {
+      return {
+        isValid: false,
+        error: 'Invalid Hugging Face API key format. API key should start with "hf_". Please check your VITE_HF_API_KEY configuration.'
+      }
+    }
+
+    return { isValid: true }
+  }
+
+  /**
+   * Test API connection with a simple request
+   */
+  static async testConnection(): Promise<{ success: boolean; error?: string }> {
+    const validation = this.validateConfiguration()
+    if (!validation.isValid) {
+      return { success: false, error: validation.error }
+    }
+
+    try {
+      await this.requestWithRetry(async () => {
+        return await axios.post(
+          HF_API_URL,
+          {
+            inputs: 'Test connection',
+            parameters: {
+              max_new_tokens: 10,
+              temperature: 0.1,
+              return_full_text: false,
+            },
+            options: {
+              wait_for_model: true
+            }
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${HF_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 10000, // 10 second timeout for test
+          }
+        )
+      })
+
+      // If we get here, the connection is working
+      return { success: true }
+    } catch (error) {
+      console.error('AI connection test failed:', error)
+      
+      if (axios.isAxiosError(error)) {
+        // Extract Hugging Face error message if available
+        const hfError = error.response?.data?.error || error.response?.data?.message
+        const baseMessage = hfError ? ` ${hfError}` : ''
+        
+        if (error.response?.status === 401) {
+          return { success: false, error: `Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.${baseMessage}` }
+        } else if (error.response?.status === 429) {
+          return { success: false, error: `Hugging Face API rate limit exceeded. Please try again later.${baseMessage}` }
+        } else if (error.response?.status === 503) {
+          return { success: false, error: `Hugging Face model is loading. Please try again in a few minutes.${baseMessage}` }
+        } else if (error.code === 'ECONNABORTED') {
+          return { success: false, error: `Connection timeout. Please check your internet connection.${baseMessage}` }
+        } else if (error.response && error.response.status >= 500) {
+          return { success: false, error: `Hugging Face service is temporarily unavailable. Please try again later.${baseMessage}` }
+        }
+      }
+      
+      return { success: false, error: 'Failed to connect to AI service. Please check your configuration and try again.' }
     }
   }
 
@@ -184,6 +348,7 @@ Consider factors like environmental impact potential, feasibility, scalability, 
       throw new Error('Hugging Face API key is required for AI suggestions. Please configure VITE_HF_API_KEY in your environment variables.')
     }
 
+    const startTime = Date.now()
     try {
       const prompt = `[INST] Suggest 3 innovative environmental projects for ${category} in ${location}.
 Focus on high-impact, feasible solutions that could be funded through a DAO.
@@ -194,24 +359,29 @@ Format as a simple list:
 2. Project idea 2  
 3. Project idea 3 [/INST]`
 
-      const response = await axios.post(
-        HF_API_URL,
-        {
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: 300,
-            temperature: 0.7,
-            return_full_text: false,
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${HF_TOKEN}`,
-            'Content-Type': 'application/json',
+      const response = await this.requestWithRetry(async () => {
+        return await axios.post(
+          HF_API_URL,
+          {
+            inputs: prompt,
+            parameters: {
+              max_new_tokens: 300,
+              temperature: 0.7,
+              return_full_text: false,
+            },
+            options: {
+              wait_for_model: true
+            }
           },
-          timeout: 30000,
-        }
-      )
+          {
+            headers: {
+              'Authorization': `Bearer ${HF_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          }
+        )
+      })
 
       const suggestions = (response.data[0]?.generated_text || response.data)
         .split('\n')
@@ -223,14 +393,26 @@ Format as a simple list:
         throw new Error('AI service returned no valid suggestions')
       }
 
+      // Track successful API call
+      const duration = Date.now() - startTime
+      AIAnalytics.trackApiCall('getProjectSuggestions', true, duration)
+
       return suggestions
     } catch (error) {
+      // Track failed API call
+      const duration = Date.now() - startTime
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      AIAnalytics.trackApiCall('getProjectSuggestions', false, duration, errorMessage)
       console.error('Failed to get AI suggestions:', error)
       if (axios.isAxiosError(error)) {
+        // Extract Hugging Face error message if available
+        const hfError = error.response?.data?.error || error.response?.data?.message
+        const baseMessage = hfError ? ` ${hfError}` : ''
+        
         if (error.response?.status === 429) {
-          throw new Error('AI service rate limit exceeded. Please try again later.')
+          throw new Error(`AI service rate limit exceeded. Please try again later.${baseMessage}`)
         } else if (error.response?.status === 401) {
-          throw new Error('Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.')
+          throw new Error(`Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.${baseMessage}`)
         }
       }
       throw new Error('Failed to get AI suggestions. Please try again.')
@@ -249,6 +431,7 @@ Format as a simple list:
       throw new Error('Hugging Face API key is required for AI insights. Please configure VITE_HF_API_KEY in your environment variables.')
     }
 
+    const startTime = Date.now()
     try {
       const prompt = `[INST] Analyze the ${category} sector for environmental projects.
 Provide insights on:
@@ -263,44 +446,68 @@ Format as JSON:
   "successFactors": ["factor1", "factor2", "factor3"]
 } [/INST]`
 
-      const response = await axios.post(
-        HF_API_URL,
-        {
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: 400,
-            temperature: 0.4,
-            return_full_text: false,
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${HF_TOKEN}`,
-            'Content-Type': 'application/json',
+      const response = await this.requestWithRetry(async () => {
+        return await axios.post(
+          HF_API_URL,
+          {
+            inputs: prompt,
+            parameters: {
+              max_new_tokens: 400,
+              temperature: 0.4,
+              return_full_text: false,
+            },
+            options: {
+              wait_for_model: true
+            }
           },
-          timeout: 30000,
-        }
-      )
+          {
+            headers: {
+              'Authorization': `Bearer ${HF_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          }
+        )
+      })
 
       const responseText = response.data[0]?.generated_text || response.data
       const jsonMatch = responseText.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0])
-        return {
-          averageImpact: Math.max(0, Math.min(100, parsed.averageImpact || 70)),
+        // Validate averageImpact field
+        if (typeof parsed.averageImpact !== 'number' || isNaN(parsed.averageImpact)) {
+          throw new Error('Invalid AI response format: averageImpact field is missing or invalid')
+        }
+        
+        const result = {
+          averageImpact: Math.max(0, Math.min(100, parsed.averageImpact)),
           commonChallenges: Array.isArray(parsed.commonChallenges) ? parsed.commonChallenges : [],
           successFactors: Array.isArray(parsed.successFactors) ? parsed.successFactors : []
         }
+        
+        // Track successful API call
+        const duration = Date.now() - startTime
+        AIAnalytics.trackApiCall('getCategoryInsights', true, duration)
+        
+        return result
       }
       
       throw new Error('AI service returned invalid insights format')
     } catch (error) {
+      // Track failed API call
+      const duration = Date.now() - startTime
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      AIAnalytics.trackApiCall('getCategoryInsights', false, duration, errorMessage)
       console.error('Failed to get category insights:', error)
       if (axios.isAxiosError(error)) {
+        // Extract Hugging Face error message if available
+        const hfError = error.response?.data?.error || error.response?.data?.message
+        const baseMessage = hfError ? ` ${hfError}` : ''
+        
         if (error.response?.status === 429) {
-          throw new Error('AI service rate limit exceeded. Please try again later.')
+          throw new Error(`AI service rate limit exceeded. Please try again later.${baseMessage}`)
         } else if (error.response?.status === 401) {
-          throw new Error('Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.')
+          throw new Error(`Invalid Hugging Face API key. Please check your VITE_HF_API_KEY configuration.${baseMessage}`)
         }
       }
       throw new Error('Failed to get AI insights. Please try again.')
