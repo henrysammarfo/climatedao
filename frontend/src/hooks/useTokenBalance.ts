@@ -36,24 +36,26 @@ export const useTokenBalance = () => {
     timestamp: number
   }>({ timestamp: 0 })
 
-  // Get XDC balance for gas fees
+  // Get XDC balance for gas fees - with error handling
   const { 
     data: xdcBalance, 
     refetch: refetchXDC,
-    isLoading: xdcLoading 
+    isLoading: xdcLoading
   } = useBalance({
     address: address,
     query: {
       enabled: !!address,
-      staleTime: 30000, // Cache for 30 seconds
+      staleTime: 60000, // Cache for 1 minute
+      refetchInterval: 300000, // Refetch every 5 minutes
+      retry: 1, // Only retry once on failure
     },
   })
 
-  // Get CLIMATE token balance for voting
+  // Get CLIMATE token balance for voting - with error handling
   const { 
     data: climateBalance, 
     refetch: refetchClimate,
-    isLoading: climateLoading 
+    isLoading: climateLoading
   } = useReadContract({
     address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
     abi: ClimateToken_ABI,
@@ -61,7 +63,9 @@ export const useTokenBalance = () => {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
-      staleTime: 30000, // Cache for 30 seconds
+      staleTime: 60000, // Cache for 1 minute
+      refetchInterval: 300000, // Refetch every 5 minutes
+      retry: 1, // Only retry once on failure
     },
   })
 
@@ -117,7 +121,12 @@ export const useTokenBalance = () => {
   }, [climateBalance])
 
   const needsFaucet = useCallback(() => {
-    return !hasMinimumXDC() && !!address
+    try {
+      return !hasMinimumXDC() && !!address
+    } catch (error) {
+      console.error('Error checking faucet needs:', error)
+      return false
+    }
   }, [hasMinimumXDC, address])
 
   const needsClimateTokens = useCallback(() => {
