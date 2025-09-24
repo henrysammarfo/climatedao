@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   Sun,
-  Moon
+  Moon,
+  Users
 } from 'lucide-react'
 import { useState } from 'react'
 import { useDarkMode } from '../hooks/useDarkMode'
@@ -43,6 +44,7 @@ const Layout = ({ children }: LayoutProps) => {
     { name: 'Proposals', href: '/proposals', icon: FileText },
     { name: 'Create', href: '/create', icon: Plus },
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
+    { name: 'Board', href: '/board', icon: Users },
   ]
 
   const isActive = (href: string) => location.pathname === href
