@@ -34,10 +34,13 @@ describe("ClimateDAO", function () {
     // Transfer initial tokens to DAO
     await climateToken.transfer(await climateDAO.getAddress(), ethers.parseEther("100000"));
 
-    // Claim tokens for test users
-    await climateToken.connect(proposer).claimTokens();
-    await climateToken.connect(voter1).claimTokens();
-    await climateToken.connect(voter2).claimTokens();
+    // Give owner enough tokens to meet quorum (1000 tokens)
+    await climateToken.transfer(owner.address, ethers.parseEther("1000"));
+
+    // Claim initial tokens for test users
+    await climateToken.connect(proposer).claimInitialTokens();
+    await climateToken.connect(voter1).claimInitialTokens();
+    await climateToken.connect(voter2).claimInitialTokens();
 
     // Approve DAO to spend tokens
     await climateToken.connect(proposer).approve(await climateDAO.getAddress(), ethers.parseEther("100000"));
@@ -65,19 +68,19 @@ describe("ClimateDAO", function () {
       // Use a different user for this test since proposer already claimed in setup
       const newUser = (await ethers.getSigners())[6];
       const balanceBefore = await climateToken.balanceOf(newUser.address);
-      await climateToken.connect(newUser).claimTokens();
+      await climateToken.connect(newUser).claimInitialTokens();
       const balanceAfter = await climateToken.balanceOf(newUser.address);
       
-      expect(balanceAfter - balanceBefore).to.equal(MINT_AMOUNT);
-      expect(await climateToken.hasClaimed(newUser.address)).to.be.true;
+      expect(balanceAfter - balanceBefore).to.equal(ethers.parseEther("50"));
+      expect(await climateToken.hasClaimedInitial(newUser.address)).to.be.true;
     });
 
     it("Should not allow users to claim tokens twice", async function () {
       const newUser = (await ethers.getSigners())[7];
-      await climateToken.connect(newUser).claimTokens();
+      await climateToken.connect(newUser).claimInitialTokens();
       await expect(
-        climateToken.connect(newUser).claimTokens()
-      ).to.be.revertedWith("Tokens already claimed");
+        climateToken.connect(newUser).claimInitialTokens()
+      ).to.be.revertedWith("Initial tokens already claimed");
     });
   });
 
@@ -94,14 +97,17 @@ describe("ClimateDAO", function () {
         images: ["https://example.com/image1.jpg"]
       };
 
-      const tx = await climateDAO.connect(proposer).createProposal(
+      const tx = await climateDAO.connect(proposer).submitProposal(
         beneficiary.address,
         projectDetails
       );
 
       await expect(tx)
-        .to.emit(climateDAO, "ProposalCreated")
-        .withArgs(1, proposer.address, await climateDAO.proposals(1), "Solar Farm Project", ethers.parseEther("50000"));
+        .to.emit(climateDAO, "ProposalSubmitted")
+        .withArgs(1, proposer.address, "Solar Farm Project");
+
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
 
       expect(await climateDAO.proposalCounter()).to.equal(1);
       expect(await climateDAO.proposals(1)).to.not.equal(ethers.ZeroAddress);
@@ -120,7 +126,7 @@ describe("ClimateDAO", function () {
       };
 
       await expect(
-        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+        climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails)
       ).to.be.revertedWith("Amount below minimum");
     });
 
@@ -137,7 +143,7 @@ describe("ClimateDAO", function () {
       };
 
       await expect(
-        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+        climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails)
       ).to.be.revertedWith("Title required");
     });
   });
@@ -158,7 +164,9 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       proposalAddress = await climateDAO.proposals(1);
       proposal = await ethers.getContractAt("Proposal", proposalAddress);
     });
@@ -166,7 +174,7 @@ describe("ClimateDAO", function () {
     it("Should allow users to vote on proposals", async function () {
       const voterBalance = await climateToken.balanceOf(voter1.address);
       
-      await proposal.connect(voter1).castVote(1, voterBalance); // Vote for
+      await proposal.connect(voter1).castVote(1); // Vote for
       
       const [hasVoted, choice] = await proposal.getUserVote(voter1.address);
       expect(hasVoted).to.be.true;
@@ -176,10 +184,10 @@ describe("ClimateDAO", function () {
     it("Should not allow users to vote twice", async function () {
       const voterBalance = await climateToken.balanceOf(voter1.address);
       
-      await proposal.connect(voter1).castVote(1, voterBalance);
+      await proposal.connect(voter1).castVote(1);
       
       await expect(
-        proposal.connect(voter1).castVote(1, voterBalance)
+        proposal.connect(voter1).castVote(1)
       ).to.be.revertedWith("Already voted");
     });
 
@@ -187,14 +195,15 @@ describe("ClimateDAO", function () {
       const voter1Balance = await climateToken.balanceOf(voter1.address);
       const voter2Balance = await climateToken.balanceOf(voter2.address);
       
-      await proposal.connect(voter1).castVote(1, voter1Balance); // Vote for
-      await proposal.connect(voter2).castVote(0, voter2Balance); // Vote against
+      await proposal.connect(voter1).castVote(1); // Vote for
+      await proposal.connect(voter2).castVote(0); // Vote against
       
       const [forVotes, againstVotes, abstainVotes, totalVotes] = await proposal.getVotingResults();
       
-      expect(forVotes).to.equal(voter1Balance);
-      expect(againstVotes).to.equal(voter2Balance);
-      expect(totalVotes).to.equal(voter1Balance + voter2Balance);
+      // Each user has 50 tokens from initial claim
+      expect(forVotes).to.equal(ethers.parseEther("50"));
+      expect(againstVotes).to.equal(ethers.parseEther("50"));
+      expect(totalVotes).to.equal(ethers.parseEther("100"));
     });
   });
 
@@ -224,13 +233,15 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       const proposalAddress = await climateDAO.proposals(1);
       const proposal = await ethers.getContractAt("Proposal", proposalAddress);
 
       // Vote to pass the proposal - need enough votes to meet quorum (1000 tokens)
       // Use the owner who has enough tokens to meet quorum
-      await proposal.connect(owner).castVote(1, ethers.parseEther("1000")); // Exactly the quorum amount
+      await proposal.connect(owner).castVote(1); // Vote for
 
       // Fast forward time to end voting
       await ethers.provider.send("evm_increaseTime", [7 * 24 * 60 * 60 + 1]);
@@ -271,7 +282,9 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       
       await expect(
         climateDAO.connect(moderator).updateProposalImpactMetrics(
@@ -296,7 +309,9 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       
       await expect(
         climateDAO.connect(voter1).updateProposalImpactMetrics(1, 1000, 5000, 50, 85)
@@ -350,7 +365,9 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       
       await expect(
         climateDAO.executeProposal(1)
@@ -370,7 +387,7 @@ describe("ClimateDAO", function () {
       };
 
       await expect(
-        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+        climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails)
       ).to.be.revertedWith("Amount above maximum");
     });
 
@@ -387,7 +404,7 @@ describe("ClimateDAO", function () {
       };
 
       await expect(
-        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+        climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails)
       ).to.be.revertedWith("Description required");
     });
 
@@ -403,14 +420,16 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       const proposalAddress = await climateDAO.proposals(1);
       const proposal = await ethers.getContractAt("Proposal", proposalAddress);
 
-      // Try to vote with zero weight
+      // Use a user with zero tokens (moderator who hasn't claimed tokens)
       await expect(
-        proposal.connect(voter1).castVote(1, 0)
-      ).to.be.revertedWith("Voting weight must be greater than 0");
+        proposal.connect(moderator).castVote(1)
+      ).to.be.revertedWith("No voting power available");
     });
 
     it("Should handle voting after proposal deadline", async function () {
@@ -425,7 +444,9 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       const proposalAddress = await climateDAO.proposals(1);
       const proposal = await ethers.getContractAt("Proposal", proposalAddress);
 
@@ -436,7 +457,7 @@ describe("ClimateDAO", function () {
       const voterBalance = await climateToken.balanceOf(voter1.address);
       
       await expect(
-        proposal.connect(voter1).castVote(1, voterBalance)
+        proposal.connect(voter1).castVote(1)
       ).to.be.revertedWith("Voting period has ended");
     });
 
@@ -454,7 +475,7 @@ describe("ClimateDAO", function () {
 
       // This should fail at creation due to amount validation
       await expect(
-        climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails)
+        climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails)
       ).to.be.revertedWith("Amount above maximum");
     });
 
@@ -496,7 +517,9 @@ describe("ClimateDAO", function () {
         images: []
       };
 
-      await climateDAO.connect(proposer).createProposal(beneficiary.address, projectDetails);
+      await climateDAO.connect(proposer).submitProposal(beneficiary.address, projectDetails);
+      // Approve the proposal to make it live
+      await climateDAO.connect(owner).reviewProposal(1, true, "Approved for testing");
       const proposalAddress = await climateDAO.proposals(1);
       const proposal = await ethers.getContractAt("Proposal", proposalAddress);
 
@@ -504,7 +527,7 @@ describe("ClimateDAO", function () {
       
       // Try to vote with invalid choice (3 is not valid - should be 0, 1, or 2)
       await expect(
-        proposal.connect(voter1).castVote(3, voterBalance)
+        proposal.connect(voter1).castVote(3)
       ).to.be.revertedWith("Invalid vote choice");
     });
   });

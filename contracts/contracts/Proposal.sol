@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title Proposal
@@ -10,6 +11,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @notice Each proposal contains project details, funding requirements, and voting data
  */
 contract Proposal is Ownable, ReentrancyGuard {
+    address public climateTokenAddress;
     enum ProposalStatus {
         Active,
         Passed,
@@ -114,7 +116,8 @@ contract Proposal is Ownable, ReentrancyGuard {
         ProjectDetails memory _projectDetails,
         uint256 _votingDuration,
         uint256 _quorumRequired,
-        uint256 _majorityThreshold
+        uint256 _majorityThreshold,
+        address _climateTokenAddress
     ) Ownable(msg.sender) {
         proposalId = _proposalId;
         proposer = _proposer;
@@ -122,6 +125,7 @@ contract Proposal is Ownable, ReentrancyGuard {
         projectDetails = _projectDetails;
         quorumRequired = _quorumRequired;
         majorityThreshold = _majorityThreshold;
+        climateTokenAddress = _climateTokenAddress;
         
         votingData.startTime = block.timestamp;
         votingData.endTime = block.timestamp + _votingDuration;
@@ -141,9 +145,8 @@ contract Proposal is Ownable, ReentrancyGuard {
         require(block.timestamp <= votingData.endTime, "Voting period has ended");
         
         // Get voting weight from ClimateToken balance
-        // Note: This requires the ClimateToken contract address to be set
-        // For now, we'll use a placeholder that should be replaced with actual token balance
-        uint256 weight = 1; // TODO: Replace with actual ClimateToken.balanceOf(msg.sender)
+        IERC20 climateToken = IERC20(climateTokenAddress);
+        uint256 weight = climateToken.balanceOf(msg.sender);
         require(weight > 0, "No voting power available");
         
         votingData.hasVoted[msg.sender] = true;

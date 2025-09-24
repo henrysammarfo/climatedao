@@ -200,7 +200,8 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
             pending.projectDetails,
             VOTING_DURATION,
             QUORUM_THRESHOLD,
-            MAJORITY_THRESHOLD
+            MAJORITY_THRESHOLD,
+            address(climateToken)
         );
         
         proposals[proposalId] = address(newProposal);

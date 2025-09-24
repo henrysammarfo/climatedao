@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\ez\\Desktop\\climatedao\\contracts\\contracts\\ClimateDAO.sol": {
-      "lastModificationDate": 1758717716024,
-      "contentHash": "ebff7014f265d05b2744654f5347d0af",
+      "lastModificationDate": 1758721654346,
+      "contentHash": "8156613d512d52ef8b04d66a5e2d9993",
       "sourceName": "contracts/ClimateDAO.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -85,8 +85,8 @@
       ]
     },
     "C:\\Users\\ez\\Desktop\\climatedao\\contracts\\contracts\\Proposal.sol": {
-      "lastModificationDate": 1758630008277,
-      "contentHash": "47fe9f53ecd80472a996355fad6ce5de",
+      "lastModificationDate": 1758721638435,
+      "contentHash": "05f73e31f97c01cca0a578b704faa039",
       "sourceName": "contracts/Proposal.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -114,7 +114,8 @@
       },
       "imports": [
         "@openzeppelin/contracts/access/Ownable.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
       ],
       "versionPragmas": [
         "^0.8.24"

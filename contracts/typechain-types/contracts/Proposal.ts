@@ -62,6 +62,7 @@ export interface ProposalInterface extends Interface {
       | "beneficiary"
       | "cancelProposal"
       | "castVote"
+      | "climateTokenAddress"
       | "executeProposal"
       | "getUserVote"
       | "getVotingResults"
@@ -101,6 +102,10 @@ export interface ProposalInterface extends Interface {
   encodeFunctionData(
     functionFragment: "castVote",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "climateTokenAddress",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "executeProposal",
@@ -168,6 +173,10 @@ export interface ProposalInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "castVote", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "climateTokenAddress",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "executeProposal",
     data: BytesLike
@@ -382,6 +391,8 @@ export interface Proposal extends BaseContract {
 
   castVote: TypedContractMethod<[choice: BigNumberish], [void], "nonpayable">;
 
+  climateTokenAddress: TypedContractMethod<[], [string], "view">;
+
   executeProposal: TypedContractMethod<[], [void], "nonpayable">;
 
   getUserVote: TypedContractMethod<
@@ -496,6 +507,9 @@ export interface Proposal extends BaseContract {
   getFunction(
     nameOrSignature: "castVote"
   ): TypedContractMethod<[choice: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "climateTokenAddress"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "executeProposal"
   ): TypedContractMethod<[], [void], "nonpayable">;
