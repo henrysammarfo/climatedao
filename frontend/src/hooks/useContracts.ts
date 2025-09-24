@@ -32,16 +32,29 @@ export const useTokenBalance = () => {
 }
 
 export const useStakingInfo = () => {
-  // Since staking functions don't exist in the current ABI, return default values
+  const { address } = useAccount()
+  
+  const { data: stakingInfo, refetch } = useReadContract({
+    address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
+    abi: ClimateToken_ABI as any,
+    functionName: 'getStakingInfo',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: 60000, // 1 minute
+    },
+  }) as { data: [bigint, bigint, bigint] | undefined, refetch: () => void }
+
   return {
-    stakingInfo: [0n, 0n, 0n, 0n],
-    stakedAmount: 0n,
-    rewards: 0n,
-    stakingStart: 0n,
-    lastClaim: 0n,
-    formattedStaked: '0',
-    formattedRewards: '0',
-    refetch: () => {}
+    stakingInfo: stakingInfo || [0n, 0n, 0n],
+    stakedAmount: stakingInfo?.[0] || 0n,
+    rewards: stakingInfo?.[1] || 0n,
+    stakingStart: stakingInfo?.[2] || 0n,
+    lastClaim: 0n, // Not available in current contract
+    formattedStaked: stakingInfo?.[0] ? formatEther(stakingInfo[0]) : '0',
+    formattedRewards: stakingInfo?.[1] ? formatEther(stakingInfo[1]) : '0',
+    refetch
   }
 }
 
@@ -89,13 +102,13 @@ export const useCreateProposal = () => {
           toast.error('Failed to register user. Cannot create proposal.', { id: 'create-proposal' })
           throw new Error('User registration required before creating proposal')
         }
-        toast.loading('Creating proposal...', { id: 'create-proposal' })
+        toast.loading('Submitting proposal for review...', { id: 'create-proposal' })
       }
       
-      const txHash = await writeContract({
+      const txHash =       await writeContract({
         address: CLIMATE_DAO_ADDRESS as `0x${string}`,
-        abi: ClimateDAO_ABI,
-        functionName: 'createProposal',
+        abi: ClimateDAO_ABI as any,
+        functionName: 'submitProposal',
         args: [beneficiary as `0x${string}`, proposalData as any],
       })
 
@@ -139,7 +152,7 @@ export const useCreateProposal = () => {
   // Handle transaction status and auto-refresh proposals
   useEffect(() => {
     if (isConfirmed && hash) {
-      toast.success('Proposal created successfully!', { id: 'create-proposal' })
+      toast.success('Proposal submitted for review! It will be reviewed by moderators before going live.', { id: 'create-proposal' })
       
       // Record achievement action
       if (address) {
@@ -351,7 +364,7 @@ export const useCanUserVote = (proposalAddress?: string) => {
   }
 }
 
-export const useClaimTokens = () => {
+export const useClaimInitialTokens = () => {
   const { address } = useAccount()
   const { writeContract, data: hash, isPending, error } = useWriteContract()
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -360,30 +373,30 @@ export const useClaimTokens = () => {
   const { autoRegister, shouldRegister } = useAutoRegister()
   const { refetch: refetchBalance } = useTokenBalance()
 
-  const claimTokens = async () => {
+  const claimInitialTokens = async () => {
     try {
-      toast.loading('Claiming tokens...', { id: 'claim-tokens' })
+      toast.loading('Claiming initial tokens...', { id: 'claim-initial-tokens' })
       
       // Check if user needs to be registered before claiming tokens
       if (shouldRegister) {
-        toast.loading('Registering user before claiming tokens...', { id: 'claim-tokens' })
+        toast.loading('Registering user before claiming tokens...', { id: 'claim-initial-tokens' })
         const registrationSuccess = await autoRegister()
         if (!registrationSuccess) {
-          toast.error('Failed to register user. Cannot claim tokens.', { id: 'claim-tokens' })
+          toast.error('Failed to register user. Cannot claim tokens.', { id: 'claim-initial-tokens' })
           throw new Error('User registration required before claiming tokens')
         }
-        toast.loading('Claiming tokens...', { id: 'claim-tokens' })
+        toast.loading('Claiming initial tokens...', { id: 'claim-initial-tokens' })
       }
       
       await writeContract({
         address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
-        abi: ClimateToken_ABI,
-        functionName: 'claimTokens',
+        abi: ClimateToken_ABI as any,
+        functionName: 'claimInitialTokens',
         args: [],
       })
     } catch (error) {
-      console.error('Failed to claim tokens:', error)
-      toast.error('Failed to claim tokens', { id: 'claim-tokens' })
+      console.error('Failed to claim initial tokens:', error)
+      toast.error('Failed to claim initial tokens', { id: 'claim-initial-tokens' })
       throw error
     }
   }
@@ -391,7 +404,7 @@ export const useClaimTokens = () => {
   // Handle transaction status
   useEffect(() => {
     if (isConfirmed) {
-      toast.success('Tokens claimed successfully!', { id: 'claim-tokens' })
+      toast.success('Initial tokens claimed successfully!', { id: 'claim-initial-tokens' })
       
       // Record achievement action
       if (address) {
@@ -401,12 +414,63 @@ export const useClaimTokens = () => {
       
       refetchBalance()
     } else if (error) {
-      toast.error('Token claim failed', { id: 'claim-tokens' })
+      toast.error('Initial token claim failed', { id: 'claim-initial-tokens' })
     }
   }, [isConfirmed, error, refetchBalance, address])
 
   return {
-    claimTokens,
+    claimInitialTokens,
+    hash,
+    isPending: isPending || isConfirming,
+    isConfirmed,
+    error
+  }
+}
+
+export const useClaimDailyTokens = () => {
+  const { address } = useAccount()
+  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+  const { refetch: refetchBalance } = useTokenBalance()
+
+  const claimDailyTokens = async () => {
+    try {
+      toast.loading('Claiming daily tokens...', { id: 'claim-daily-tokens' })
+      
+      await writeContract({
+        address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
+        abi: ClimateToken_ABI as any,
+        functionName: 'claimDailyTokens',
+        args: [],
+      })
+    } catch (error) {
+      console.error('Failed to claim daily tokens:', error)
+      toast.error('Failed to claim daily tokens', { id: 'claim-daily-tokens' })
+      throw error
+    }
+  }
+
+  // Handle transaction status
+  useEffect(() => {
+    if (isConfirmed) {
+      toast.success('Daily tokens claimed successfully!', { id: 'claim-daily-tokens' })
+      
+      // Record achievement action
+      if (address) {
+        achievementService.recordAction(address, 'claim_tokens')
+          .catch(error => console.error('Failed to record claim tokens achievement:', error))
+      }
+      
+      refetchBalance()
+    } else if (error) {
+      toast.error('Daily token claim failed', { id: 'claim-daily-tokens' })
+    }
+  }, [isConfirmed, error, refetchBalance, address])
+
+  return {
+    claimDailyTokens,
     hash,
     isPending: isPending || isConfirming,
     isConfirmed,
@@ -478,44 +542,257 @@ export const useDonateFunds = () => {
 }
 
 export const useStakeTokens = () => {
-  // Staking functionality not available in current contract
+  const { address } = useAccount()
+  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+  const { refetch: refetchBalance } = useTokenBalance()
+
+  const stakeTokens = async (amount: string) => {
+    try {
+      const amountWei = parseEther(amount)
+      toast.loading('Staking tokens...', { id: 'stake-tokens' })
+      
+      await writeContract({
+        address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
+        abi: ClimateToken_ABI as any,
+        functionName: 'stakeTokens',
+        args: [amountWei],
+      })
+    } catch (error) {
+      console.error('Failed to stake tokens:', error)
+      toast.error('Failed to stake tokens', { id: 'stake-tokens' })
+      throw error
+    }
+  }
+
+  // Handle transaction status
+  useEffect(() => {
+    if (isConfirmed) {
+      toast.success('Tokens staked successfully!', { id: 'stake-tokens' })
+      
+      // Record achievement action
+      if (address) {
+        achievementService.recordAction(address, 'stake')
+          .catch(error => console.error('Failed to record stake achievement:', error))
+      }
+      
+      refetchBalance()
+    } else if (error) {
+      toast.error('Staking failed', { id: 'stake-tokens' })
+    }
+  }, [isConfirmed, error, refetchBalance, address])
+
   return {
-    stakeTokens: async () => {
-      toast.error('Staking functionality not available')
-      throw new Error('Staking functionality not available')
-    },
-    hash: undefined,
-    isPending: false,
-    isConfirmed: false,
-    error: null
+    stakeTokens,
+    hash,
+    isPending: isPending || isConfirming,
+    isConfirmed,
+    error
   }
 }
 
 export const useUnstakeTokens = () => {
-  // Unstaking functionality not available in current contract
+  const { address } = useAccount()
+  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+  const { refetch: refetchBalance } = useTokenBalance()
+
+  const unstakeTokens = async (amount: string) => {
+    try {
+      const amountWei = parseEther(amount)
+      toast.loading('Unstaking tokens...', { id: 'unstake-tokens' })
+      
+      await writeContract({
+        address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
+        abi: ClimateToken_ABI as any,
+        functionName: 'unstakeTokens',
+        args: [amountWei],
+      })
+    } catch (error) {
+      console.error('Failed to unstake tokens:', error)
+      toast.error('Failed to unstake tokens', { id: 'unstake-tokens' })
+      throw error
+    }
+  }
+
+  // Handle transaction status
+  useEffect(() => {
+    if (isConfirmed) {
+      toast.success('Tokens unstaked successfully!', { id: 'unstake-tokens' })
+      
+      // Record achievement action
+      if (address) {
+        achievementService.recordAction(address, 'unstake')
+          .catch(error => console.error('Failed to record unstake achievement:', error))
+      }
+      
+      refetchBalance()
+    } else if (error) {
+      toast.error('Unstaking failed', { id: 'unstake-tokens' })
+    }
+  }, [isConfirmed, error, refetchBalance, address])
+
   return {
-    unstakeTokens: async () => {
-      toast.error('Unstaking functionality not available')
-      throw new Error('Unstaking functionality not available')
-    },
-    hash: undefined,
-    isPending: false,
-    isConfirmed: false,
-    error: null
+    unstakeTokens,
+    hash,
+    isPending: isPending || isConfirming,
+    isConfirmed,
+    error
   }
 }
 
 export const useClaimRewards = () => {
-  // Claim rewards functionality not available in current contract
+  const { address } = useAccount()
+  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+  const { refetch: refetchBalance } = useTokenBalance()
+
+  const claimRewards = async () => {
+    try {
+      toast.loading('Claiming rewards...', { id: 'claim-rewards' })
+      
+      await writeContract({
+        address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
+        abi: ClimateToken_ABI as any,
+        functionName: 'claimRewards',
+        args: [],
+      })
+    } catch (error) {
+      console.error('Failed to claim rewards:', error)
+      toast.error('Failed to claim rewards', { id: 'claim-rewards' })
+      throw error
+    }
+  }
+
+  // Handle transaction status
+  useEffect(() => {
+    if (isConfirmed) {
+      toast.success('Rewards claimed successfully!', { id: 'claim-rewards' })
+      
+      // Record achievement action
+      if (address) {
+        achievementService.recordAction(address, 'claim_rewards')
+          .catch(error => console.error('Failed to record claim rewards achievement:', error))
+      }
+      
+      refetchBalance()
+    } else if (error) {
+      toast.error('Reward claim failed', { id: 'claim-rewards' })
+    }
+  }, [isConfirmed, error, refetchBalance, address])
+
   return {
-    claimRewards: async () => {
-      toast.error('Claim rewards functionality not available')
-      throw new Error('Claim rewards functionality not available')
+    claimRewards,
+    hash,
+    isPending: isPending || isConfirming,
+    isConfirmed,
+    error
+  }
+}
+
+export const useClaimStatus = () => {
+  const { address } = useAccount()
+  
+  const { data: claimStatus, refetch } = useReadContract({
+    address: CLIMATE_TOKEN_ADDRESS as `0x${string}`,
+    abi: ClimateToken_ABI as any,
+    functionName: 'getClaimStatus',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: 60000, // 1 minute
     },
-    hash: undefined,
-    isPending: false,
-    isConfirmed: false,
-    error: null
+  }) as { data: [boolean, bigint, bigint] | undefined, refetch: () => void }
+
+  return {
+    canClaim: claimStatus?.[0] || false,
+    nextClaimTime: claimStatus?.[1] || 0n,
+    dailyClaimsRemaining: claimStatus?.[2] || 0n,
+    refetch
+  }
+}
+
+export const usePendingProposals = () => {
+  const { data: pendingIds, refetch: refetchIds } = useReadContract({
+    address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+    abi: ClimateDAO_ABI as any,
+    functionName: 'getPendingProposalIds',
+    query: {
+      staleTime: 30000, // 30 seconds
+      refetchInterval: 60000, // 1 minute
+    },
+  })
+
+  return {
+    pendingIds: pendingIds || [],
+    refetch: refetchIds
+  }
+}
+
+export const usePendingProposal = (pendingId: number) => {
+  const { data: proposal, refetch } = useReadContract({
+    address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+    abi: ClimateDAO_ABI as any,
+    functionName: 'getPendingProposal',
+    args: [BigInt(pendingId)],
+    query: {
+      enabled: pendingId > 0,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: 60000, // 1 minute
+    },
+  })
+
+  return {
+    proposal,
+    refetch
+  }
+}
+
+export const useReviewProposal = () => {
+  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  })
+
+  const reviewProposal = async (pendingId: number, approved: boolean, reviewNotes: string) => {
+    try {
+      toast.loading(approved ? 'Approving proposal...' : 'Rejecting proposal...', { id: 'review-proposal' })
+      
+      await writeContract({
+        address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+        abi: ClimateDAO_ABI as any,
+        functionName: 'reviewProposal',
+        args: [BigInt(pendingId), approved, reviewNotes],
+      })
+    } catch (error) {
+      console.error('Failed to review proposal:', error)
+      toast.error('Failed to review proposal', { id: 'review-proposal' })
+      throw error
+    }
+  }
+
+  // Handle transaction status
+  useEffect(() => {
+    if (isConfirmed) {
+      toast.success('Proposal review completed!', { id: 'review-proposal' })
+    } else if (error) {
+      toast.error('Proposal review failed', { id: 'review-proposal' })
+    }
+  }, [isConfirmed, error])
+
+  return {
+    reviewProposal,
+    hash,
+    isPending: isPending || isConfirming,
+    isConfirmed,
+    error
   }
 }
 
@@ -625,7 +902,7 @@ export const useUserProposals = (userAddress?: `0x${string}`) => {
         // Try to fetch real user proposals first
         const fetchedProposals = await ProposalService.getUserProposals(userAddress)
         if (fetchedProposals && fetchedProposals.length > 0) {
-          setUserProposals(fetchedProposals)
+        setUserProposals(fetchedProposals)
         } else {
           // If no real proposals, show some mock data to demonstrate functionality
           const mockProposals = [

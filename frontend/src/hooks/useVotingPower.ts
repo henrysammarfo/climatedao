@@ -1,21 +1,21 @@
 // Voting Power Management Hook
 import { useAccount } from 'wagmi'
-import { useUserVotingPower, useClaimTokens } from './useContracts'
+import { useUserVotingPower, useClaimInitialTokens } from './useContracts'
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 
 export const useVotingPower = () => {
   const { address } = useAccount()
   const { votingPower, formattedVotingPower, hasMinimumVotingPower, refetch } = useUserVotingPower()
-  const { claimTokens, isPending: isClaiming, isConfirmed: isClaimConfirmed } = useClaimTokens()
+  const { claimInitialTokens, isPending: isClaiming, isConfirmed: isClaimConfirmed } = useClaimInitialTokens()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleClaimTokens = async () => {
     try {
-      await claimTokens()
+      await claimInitialTokens()
     } catch (error) {
       console.error('Failed to claim tokens:', error)
-      // Error handling is done in the useClaimTokens hook
+      // Error handling is done in the useClaimInitialTokens hook
     }
   }
 

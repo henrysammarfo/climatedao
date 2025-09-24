@@ -36,6 +36,21 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
     mapping(address => bool) public isModerator;
     mapping(address => bool) public validProposal;
     
+    // Moderation system
+    struct PendingProposal {
+        address proposer;
+        address beneficiary;
+        Proposal.ProjectDetails projectDetails;
+        uint256 submissionTime;
+        bool isReviewed;
+        bool isApproved;
+        string reviewNotes;
+    }
+    
+    mapping(uint256 => PendingProposal) public pendingProposals;
+    uint256 public pendingProposalCounter;
+    uint256[] public pendingProposalIds;
+    
     // User Registry
     mapping(address => bool) public registeredUsers;
     mapping(address => UserInfo) public userRegistry;
@@ -73,6 +88,11 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
     event ModeratorRemoved(address indexed moderator);
     event PlatformFeeUpdated(uint256 oldFee, uint256 newFee);
     
+    // Moderation events
+    event ProposalSubmitted(uint256 indexed pendingId, address indexed proposer, string title);
+    event ProposalReviewed(uint256 indexed pendingId, bool approved, string reviewNotes);
+    event ProposalApproved(uint256 indexed pendingId, uint256 indexed proposalId);
+    
     // User Registry Events
     event UserRegistered(address indexed user, uint256 timestamp);
     event UserProfileUpdated(address indexed user, uint256 totalContributions, uint256 proposalCount, uint256 voteCount);
@@ -97,12 +117,12 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev Create a new proposal
+     * @dev Submit a proposal for moderation
      * @param beneficiary The address that will receive funds if proposal passes
      * @param projectDetails The project details struct
-     * @return proposalId The ID of the created proposal
+     * @return pendingId The ID of the pending proposal
      */
-    function createProposal(
+    function submitProposal(
         address beneficiary,
         Proposal.ProjectDetails memory projectDetails
     ) external validProposalAmount(projectDetails.requestedAmount) returns (uint256) {
@@ -115,15 +135,69 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
             _registerUser(msg.sender);
         }
         
+        pendingProposalCounter++;
+        uint256 pendingId = pendingProposalCounter;
+        
+        // Store pending proposal
+        pendingProposals[pendingId] = PendingProposal({
+            proposer: msg.sender,
+            beneficiary: beneficiary,
+            projectDetails: projectDetails,
+            submissionTime: block.timestamp,
+            isReviewed: false,
+            isApproved: false,
+            reviewNotes: ""
+        });
+        
+        pendingProposalIds.push(pendingId);
+        
+        emit ProposalSubmitted(pendingId, msg.sender, projectDetails.title);
+        
+        return pendingId;
+    }
+    
+    /**
+     * @dev Review a pending proposal (moderator only)
+     * @param pendingId The ID of the pending proposal
+     * @param approved Whether the proposal is approved
+     * @param reviewNotes Notes from the moderator
+     */
+    function reviewProposal(
+        uint256 pendingId,
+        bool approved,
+        string memory reviewNotes
+    ) external onlyModerator {
+        require(pendingProposals[pendingId].proposer != address(0), "Proposal does not exist");
+        require(!pendingProposals[pendingId].isReviewed, "Proposal already reviewed");
+        
+        pendingProposals[pendingId].isReviewed = true;
+        pendingProposals[pendingId].isApproved = approved;
+        pendingProposals[pendingId].reviewNotes = reviewNotes;
+        
+        emit ProposalReviewed(pendingId, approved, reviewNotes);
+        
+        // If approved, create the actual proposal
+        if (approved) {
+            _createApprovedProposal(pendingId);
+        }
+    }
+    
+    /**
+     * @dev Internal function to create approved proposal
+     * @param pendingId The ID of the pending proposal
+     */
+    function _createApprovedProposal(uint256 pendingId) internal {
+        PendingProposal storage pending = pendingProposals[pendingId];
+        
         proposalCounter++;
         uint256 proposalId = proposalCounter;
         
         // Deploy new proposal contract
         Proposal newProposal = new Proposal(
             proposalId,
-            msg.sender,
-            beneficiary,
-            projectDetails,
+            pending.proposer,
+            pending.beneficiary,
+            pending.projectDetails,
             VOTING_DURATION,
             QUORUM_THRESHOLD,
             MAJORITY_THRESHOLD
@@ -131,26 +205,26 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
         
         proposals[proposalId] = address(newProposal);
         validProposal[address(newProposal)] = true;
-        userProposals[msg.sender].push(proposalId);
+        userProposals[pending.proposer].push(proposalId);
         
         // Update user statistics
-        userRegistry[msg.sender].proposalCount++;
+        userRegistry[pending.proposer].proposalCount++;
         emit UserProfileUpdated(
-            msg.sender,
-            userRegistry[msg.sender].totalContributions,
-            userRegistry[msg.sender].proposalCount,
-            userRegistry[msg.sender].voteCount
+            pending.proposer,
+            userRegistry[pending.proposer].totalContributions,
+            userRegistry[pending.proposer].proposalCount,
+            userRegistry[pending.proposer].voteCount
         );
         
         emit ProposalCreated(
             proposalId,
-            msg.sender,
+            pending.proposer,
             address(newProposal),
-            projectDetails.title,
-            projectDetails.requestedAmount
+            pending.projectDetails.title,
+            pending.projectDetails.requestedAmount
         );
         
-        return proposalId;
+        emit ProposalApproved(pendingId, proposalId);
     }
     
     /**
@@ -382,6 +456,83 @@ contract ClimateDAO is Ownable, ReentrancyGuard {
             userRegistry[user].proposalCount,
             userRegistry[user].voteCount
         );
+    }
+    
+    /**
+     * @dev Get pending proposal details
+     * @param pendingId The pending proposal ID
+     * @return proposer The proposer address
+     * @return beneficiary The beneficiary address
+     * @return title The proposal title
+     * @return requestedAmount The requested amount
+     * @return submissionTime The submission timestamp
+     * @return isReviewed Whether the proposal has been reviewed
+     * @return isApproved Whether the proposal was approved
+     */
+    function getPendingProposal(uint256 pendingId) external view returns (
+        address proposer,
+        address beneficiary,
+        string memory title,
+        uint256 requestedAmount,
+        uint256 submissionTime,
+        bool isReviewed,
+        bool isApproved
+    ) {
+        PendingProposal storage pending = pendingProposals[pendingId];
+        return (
+            pending.proposer,
+            pending.beneficiary,
+            pending.projectDetails.title,
+            pending.projectDetails.requestedAmount,
+            pending.submissionTime,
+            pending.isReviewed,
+            pending.isApproved
+        );
+    }
+    
+    /**
+     * @dev Get pending proposal full details
+     * @param pendingId The pending proposal ID
+     * @return description The proposal description
+     * @return location The project location
+     * @return category The project category
+     * @return duration The project duration
+     * @return website The project website
+     * @return reviewNotes The moderator's review notes
+     */
+    function getPendingProposalDetails(uint256 pendingId) external view returns (
+        string memory description,
+        string memory location,
+        uint8 category,
+        uint256 duration,
+        string memory website,
+        string memory reviewNotes
+    ) {
+        PendingProposal storage pending = pendingProposals[pendingId];
+        return (
+            pending.projectDetails.description,
+            pending.projectDetails.location,
+            uint8(pending.projectDetails.category),
+            pending.projectDetails.duration,
+            pending.projectDetails.website,
+            pending.reviewNotes
+        );
+    }
+    
+    /**
+     * @dev Get all pending proposal IDs
+     * @return Array of pending proposal IDs
+     */
+    function getPendingProposalIds() external view returns (uint256[] memory) {
+        return pendingProposalIds;
+    }
+    
+    /**
+     * @dev Get pending proposals count
+     * @return count The number of pending proposals
+     */
+    function getPendingProposalsCount() external view returns (uint256) {
+        return pendingProposalIds.length;
     }
     
     /**

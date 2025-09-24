@@ -100,7 +100,7 @@ export interface ProposalInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "castVote",
-    values: [BigNumberish, BigNumberish]
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "executeProposal",
@@ -380,11 +380,7 @@ export interface Proposal extends BaseContract {
 
   cancelProposal: TypedContractMethod<[], [void], "nonpayable">;
 
-  castVote: TypedContractMethod<
-    [choice: BigNumberish, weight: BigNumberish],
-    [void],
-    "nonpayable"
-  >;
+  castVote: TypedContractMethod<[choice: BigNumberish], [void], "nonpayable">;
 
   executeProposal: TypedContractMethod<[], [void], "nonpayable">;
 
@@ -499,11 +495,7 @@ export interface Proposal extends BaseContract {
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "castVote"
-  ): TypedContractMethod<
-    [choice: BigNumberish, weight: BigNumberish],
-    [void],
-    "nonpayable"
-  >;
+  ): TypedContractMethod<[choice: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "executeProposal"
   ): TypedContractMethod<[], [void], "nonpayable">;

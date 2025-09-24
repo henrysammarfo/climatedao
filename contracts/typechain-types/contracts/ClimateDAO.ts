@@ -23,6 +23,30 @@ import type {
   TypedContractMethod,
 } from "../common";
 
+export declare namespace ClimateDAO {
+  export type UserInfoStruct = {
+    registrationTimestamp: BigNumberish;
+    totalContributions: BigNumberish;
+    proposalCount: BigNumberish;
+    voteCount: BigNumberish;
+    isActive: boolean;
+  };
+
+  export type UserInfoStructOutput = [
+    registrationTimestamp: bigint,
+    totalContributions: bigint,
+    proposalCount: bigint,
+    voteCount: bigint,
+    isActive: boolean
+  ] & {
+    registrationTimestamp: bigint;
+    totalContributions: bigint;
+    proposalCount: bigint;
+    voteCount: bigint;
+    isActive: boolean;
+  };
+}
+
 export declare namespace Proposal {
   export type ProjectDetailsStruct = {
     title: string;
@@ -67,26 +91,41 @@ export interface ClimateDAOInterface extends Interface {
       | "VOTING_DURATION"
       | "addModerator"
       | "climateToken"
-      | "createProposal"
       | "donateFunds"
       | "executeProposal"
       | "getDAOStats"
+      | "getPendingProposal"
+      | "getPendingProposalDetails"
+      | "getPendingProposalIds"
+      | "getPendingProposalsCount"
       | "getProposalDetails"
+      | "getUserInfo"
       | "getUserProposals"
       | "isModerator"
+      | "isUserRegistered"
       | "owner"
+      | "pendingProposalCounter"
+      | "pendingProposalIds"
+      | "pendingProposals"
       | "platformFee"
       | "proposalCounter"
       | "proposals"
+      | "registerUser"
+      | "registeredUsers"
       | "removeModerator"
       | "renounceOwnership"
+      | "reviewProposal"
+      | "submitProposal"
       | "totalFundsDistributed"
       | "totalFundsRaised"
       | "transferOwnership"
       | "updatePlatformFee"
       | "updateProposalImpactMetrics"
+      | "updateUserVoteCount"
       | "userContributions"
       | "userProposals"
+      | "userRegistry"
+      | "validProposal"
       | "withdrawFees"
   ): FunctionFragment;
 
@@ -98,7 +137,12 @@ export interface ClimateDAOInterface extends Interface {
       | "ModeratorRemoved"
       | "OwnershipTransferred"
       | "PlatformFeeUpdated"
+      | "ProposalApproved"
       | "ProposalCreated"
+      | "ProposalReviewed"
+      | "ProposalSubmitted"
+      | "UserProfileUpdated"
+      | "UserRegistered"
   ): EventFragment;
 
   encodeFunctionData(
@@ -134,10 +178,6 @@ export interface ClimateDAOInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "createProposal",
-    values: [AddressLike, Proposal.ProjectDetailsStruct]
-  ): string;
-  encodeFunctionData(
     functionFragment: "donateFunds",
     values: [BigNumberish]
   ): string;
@@ -150,8 +190,28 @@ export interface ClimateDAOInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "getPendingProposal",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getPendingProposalDetails",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getPendingProposalIds",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getPendingProposalsCount",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "getProposalDetails",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getUserInfo",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getUserProposals",
@@ -161,7 +221,23 @@ export interface ClimateDAOInterface extends Interface {
     functionFragment: "isModerator",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "isUserRegistered",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "pendingProposalCounter",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "pendingProposalIds",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "pendingProposals",
+    values: [BigNumberish]
+  ): string;
   encodeFunctionData(
     functionFragment: "platformFee",
     values?: undefined
@@ -175,12 +251,28 @@ export interface ClimateDAOInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "registerUser",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "registeredUsers",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "removeModerator",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "reviewProposal",
+    values: [BigNumberish, boolean, string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "submitProposal",
+    values: [AddressLike, Proposal.ProjectDetailsStruct]
   ): string;
   encodeFunctionData(
     functionFragment: "totalFundsDistributed",
@@ -209,12 +301,24 @@ export interface ClimateDAOInterface extends Interface {
     ]
   ): string;
   encodeFunctionData(
+    functionFragment: "updateUserVoteCount",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "userContributions",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "userProposals",
     values: [AddressLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "userRegistry",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "validProposal",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "withdrawFees",
@@ -254,10 +358,6 @@ export interface ClimateDAOInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "createProposal",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "donateFunds",
     data: BytesLike
   ): Result;
@@ -270,7 +370,27 @@ export interface ClimateDAOInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "getPendingProposal",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getPendingProposalDetails",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getPendingProposalIds",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getPendingProposalsCount",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "getProposalDetails",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getUserInfo",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -281,7 +401,23 @@ export interface ClimateDAOInterface extends Interface {
     functionFragment: "isModerator",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "isUserRegistered",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingProposalCounter",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingProposalIds",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingProposals",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "platformFee",
     data: BytesLike
@@ -292,11 +428,27 @@ export interface ClimateDAOInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "proposals", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "registerUser",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "registeredUsers",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "removeModerator",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "reviewProposal",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "submitProposal",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -320,11 +472,23 @@ export interface ClimateDAOInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "updateUserVoteCount",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "userContributions",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "userProposals",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "userRegistry",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "validProposal",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -427,6 +591,19 @@ export namespace PlatformFeeUpdatedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace ProposalApprovedEvent {
+  export type InputTuple = [pendingId: BigNumberish, proposalId: BigNumberish];
+  export type OutputTuple = [pendingId: bigint, proposalId: bigint];
+  export interface OutputObject {
+    pendingId: bigint;
+    proposalId: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace ProposalCreatedEvent {
   export type InputTuple = [
     proposalId: BigNumberish,
@@ -448,6 +625,88 @@ export namespace ProposalCreatedEvent {
     proposalContract: string;
     title: string;
     requestedAmount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ProposalReviewedEvent {
+  export type InputTuple = [
+    pendingId: BigNumberish,
+    approved: boolean,
+    reviewNotes: string
+  ];
+  export type OutputTuple = [
+    pendingId: bigint,
+    approved: boolean,
+    reviewNotes: string
+  ];
+  export interface OutputObject {
+    pendingId: bigint;
+    approved: boolean;
+    reviewNotes: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ProposalSubmittedEvent {
+  export type InputTuple = [
+    pendingId: BigNumberish,
+    proposer: AddressLike,
+    title: string
+  ];
+  export type OutputTuple = [
+    pendingId: bigint,
+    proposer: string,
+    title: string
+  ];
+  export interface OutputObject {
+    pendingId: bigint;
+    proposer: string;
+    title: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace UserProfileUpdatedEvent {
+  export type InputTuple = [
+    user: AddressLike,
+    totalContributions: BigNumberish,
+    proposalCount: BigNumberish,
+    voteCount: BigNumberish
+  ];
+  export type OutputTuple = [
+    user: string,
+    totalContributions: bigint,
+    proposalCount: bigint,
+    voteCount: bigint
+  ];
+  export interface OutputObject {
+    user: string;
+    totalContributions: bigint;
+    proposalCount: bigint;
+    voteCount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace UserRegisteredEvent {
+  export type InputTuple = [user: AddressLike, timestamp: BigNumberish];
+  export type OutputTuple = [user: string, timestamp: bigint];
+  export interface OutputObject {
+    user: string;
+    timestamp: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -518,12 +777,6 @@ export interface ClimateDAO extends BaseContract {
 
   climateToken: TypedContractMethod<[], [string], "view">;
 
-  createProposal: TypedContractMethod<
-    [beneficiary: AddressLike, projectDetails: Proposal.ProjectDetailsStruct],
-    [bigint],
-    "nonpayable"
-  >;
-
   donateFunds: TypedContractMethod<
     [amount: BigNumberish],
     [void],
@@ -549,6 +802,41 @@ export interface ClimateDAO extends BaseContract {
     "view"
   >;
 
+  getPendingProposal: TypedContractMethod<
+    [pendingId: BigNumberish],
+    [
+      [string, string, string, bigint, bigint, boolean, boolean] & {
+        proposer: string;
+        beneficiary: string;
+        title: string;
+        requestedAmount: bigint;
+        submissionTime: bigint;
+        isReviewed: boolean;
+        isApproved: boolean;
+      }
+    ],
+    "view"
+  >;
+
+  getPendingProposalDetails: TypedContractMethod<
+    [pendingId: BigNumberish],
+    [
+      [string, string, bigint, bigint, string, string] & {
+        description: string;
+        location: string;
+        category: bigint;
+        duration: bigint;
+        website: string;
+        reviewNotes: string;
+      }
+    ],
+    "view"
+  >;
+
+  getPendingProposalIds: TypedContractMethod<[], [bigint[]], "view">;
+
+  getPendingProposalsCount: TypedContractMethod<[], [bigint], "view">;
+
   getProposalDetails: TypedContractMethod<
     [proposalId: BigNumberish],
     [
@@ -562,6 +850,12 @@ export interface ClimateDAO extends BaseContract {
     "view"
   >;
 
+  getUserInfo: TypedContractMethod<
+    [user: AddressLike],
+    [ClimateDAO.UserInfoStructOutput],
+    "view"
+  >;
+
   getUserProposals: TypedContractMethod<
     [user: AddressLike],
     [bigint[]],
@@ -570,13 +864,51 @@ export interface ClimateDAO extends BaseContract {
 
   isModerator: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
+  isUserRegistered: TypedContractMethod<[user: AddressLike], [boolean], "view">;
+
   owner: TypedContractMethod<[], [string], "view">;
+
+  pendingProposalCounter: TypedContractMethod<[], [bigint], "view">;
+
+  pendingProposalIds: TypedContractMethod<
+    [arg0: BigNumberish],
+    [bigint],
+    "view"
+  >;
+
+  pendingProposals: TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [
+        string,
+        string,
+        Proposal.ProjectDetailsStructOutput,
+        bigint,
+        boolean,
+        boolean,
+        string
+      ] & {
+        proposer: string;
+        beneficiary: string;
+        projectDetails: Proposal.ProjectDetailsStructOutput;
+        submissionTime: bigint;
+        isReviewed: boolean;
+        isApproved: boolean;
+        reviewNotes: string;
+      }
+    ],
+    "view"
+  >;
 
   platformFee: TypedContractMethod<[], [bigint], "view">;
 
   proposalCounter: TypedContractMethod<[], [bigint], "view">;
 
   proposals: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
+
+  registerUser: TypedContractMethod<[user: AddressLike], [void], "nonpayable">;
+
+  registeredUsers: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
   removeModerator: TypedContractMethod<
     [moderator: AddressLike],
@@ -585,6 +917,18 @@ export interface ClimateDAO extends BaseContract {
   >;
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  reviewProposal: TypedContractMethod<
+    [pendingId: BigNumberish, approved: boolean, reviewNotes: string],
+    [void],
+    "nonpayable"
+  >;
+
+  submitProposal: TypedContractMethod<
+    [beneficiary: AddressLike, projectDetails: Proposal.ProjectDetailsStruct],
+    [bigint],
+    "nonpayable"
+  >;
 
   totalFundsDistributed: TypedContractMethod<[], [bigint], "view">;
 
@@ -614,6 +958,12 @@ export interface ClimateDAO extends BaseContract {
     "nonpayable"
   >;
 
+  updateUserVoteCount: TypedContractMethod<
+    [user: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   userContributions: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
   userProposals: TypedContractMethod<
@@ -621,6 +971,22 @@ export interface ClimateDAO extends BaseContract {
     [bigint],
     "view"
   >;
+
+  userRegistry: TypedContractMethod<
+    [arg0: AddressLike],
+    [
+      [bigint, bigint, bigint, bigint, boolean] & {
+        registrationTimestamp: bigint;
+        totalContributions: bigint;
+        proposalCount: bigint;
+        voteCount: bigint;
+        isActive: boolean;
+      }
+    ],
+    "view"
+  >;
+
+  validProposal: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
   withdrawFees: TypedContractMethod<
     [amount: BigNumberish],
@@ -657,13 +1023,6 @@ export interface ClimateDAO extends BaseContract {
     nameOrSignature: "climateToken"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "createProposal"
-  ): TypedContractMethod<
-    [beneficiary: AddressLike, projectDetails: Proposal.ProjectDetailsStruct],
-    [bigint],
-    "nonpayable"
-  >;
-  getFunction(
     nameOrSignature: "donateFunds"
   ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -684,6 +1043,45 @@ export interface ClimateDAO extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "getPendingProposal"
+  ): TypedContractMethod<
+    [pendingId: BigNumberish],
+    [
+      [string, string, string, bigint, bigint, boolean, boolean] & {
+        proposer: string;
+        beneficiary: string;
+        title: string;
+        requestedAmount: bigint;
+        submissionTime: bigint;
+        isReviewed: boolean;
+        isApproved: boolean;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getPendingProposalDetails"
+  ): TypedContractMethod<
+    [pendingId: BigNumberish],
+    [
+      [string, string, bigint, bigint, string, string] & {
+        description: string;
+        location: string;
+        category: bigint;
+        duration: bigint;
+        website: string;
+        reviewNotes: string;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getPendingProposalIds"
+  ): TypedContractMethod<[], [bigint[]], "view">;
+  getFunction(
+    nameOrSignature: "getPendingProposalsCount"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "getProposalDetails"
   ): TypedContractMethod<
     [proposalId: BigNumberish],
@@ -698,14 +1096,55 @@ export interface ClimateDAO extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "getUserInfo"
+  ): TypedContractMethod<
+    [user: AddressLike],
+    [ClimateDAO.UserInfoStructOutput],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "getUserProposals"
   ): TypedContractMethod<[user: AddressLike], [bigint[]], "view">;
   getFunction(
     nameOrSignature: "isModerator"
   ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
   getFunction(
+    nameOrSignature: "isUserRegistered"
+  ): TypedContractMethod<[user: AddressLike], [boolean], "view">;
+  getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "pendingProposalCounter"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "pendingProposalIds"
+  ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "pendingProposals"
+  ): TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [
+        string,
+        string,
+        Proposal.ProjectDetailsStructOutput,
+        bigint,
+        boolean,
+        boolean,
+        string
+      ] & {
+        proposer: string;
+        beneficiary: string;
+        projectDetails: Proposal.ProjectDetailsStructOutput;
+        submissionTime: bigint;
+        isReviewed: boolean;
+        isApproved: boolean;
+        reviewNotes: string;
+      }
+    ],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "platformFee"
   ): TypedContractMethod<[], [bigint], "view">;
@@ -716,11 +1155,31 @@ export interface ClimateDAO extends BaseContract {
     nameOrSignature: "proposals"
   ): TypedContractMethod<[arg0: BigNumberish], [string], "view">;
   getFunction(
+    nameOrSignature: "registerUser"
+  ): TypedContractMethod<[user: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "registeredUsers"
+  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+  getFunction(
     nameOrSignature: "removeModerator"
   ): TypedContractMethod<[moderator: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "reviewProposal"
+  ): TypedContractMethod<
+    [pendingId: BigNumberish, approved: boolean, reviewNotes: string],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "submitProposal"
+  ): TypedContractMethod<
+    [beneficiary: AddressLike, projectDetails: Proposal.ProjectDetailsStruct],
+    [bigint],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "totalFundsDistributed"
   ): TypedContractMethod<[], [bigint], "view">;
@@ -747,6 +1206,9 @@ export interface ClimateDAO extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "updateUserVoteCount"
+  ): TypedContractMethod<[user: AddressLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "userContributions"
   ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
   getFunction(
@@ -756,6 +1218,24 @@ export interface ClimateDAO extends BaseContract {
     [bigint],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "userRegistry"
+  ): TypedContractMethod<
+    [arg0: AddressLike],
+    [
+      [bigint, bigint, bigint, bigint, boolean] & {
+        registrationTimestamp: bigint;
+        totalContributions: bigint;
+        proposalCount: bigint;
+        voteCount: bigint;
+        isActive: boolean;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "validProposal"
+  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "withdrawFees"
   ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
@@ -803,11 +1283,46 @@ export interface ClimateDAO extends BaseContract {
     PlatformFeeUpdatedEvent.OutputObject
   >;
   getEvent(
+    key: "ProposalApproved"
+  ): TypedContractEvent<
+    ProposalApprovedEvent.InputTuple,
+    ProposalApprovedEvent.OutputTuple,
+    ProposalApprovedEvent.OutputObject
+  >;
+  getEvent(
     key: "ProposalCreated"
   ): TypedContractEvent<
     ProposalCreatedEvent.InputTuple,
     ProposalCreatedEvent.OutputTuple,
     ProposalCreatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ProposalReviewed"
+  ): TypedContractEvent<
+    ProposalReviewedEvent.InputTuple,
+    ProposalReviewedEvent.OutputTuple,
+    ProposalReviewedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ProposalSubmitted"
+  ): TypedContractEvent<
+    ProposalSubmittedEvent.InputTuple,
+    ProposalSubmittedEvent.OutputTuple,
+    ProposalSubmittedEvent.OutputObject
+  >;
+  getEvent(
+    key: "UserProfileUpdated"
+  ): TypedContractEvent<
+    UserProfileUpdatedEvent.InputTuple,
+    UserProfileUpdatedEvent.OutputTuple,
+    UserProfileUpdatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "UserRegistered"
+  ): TypedContractEvent<
+    UserRegisteredEvent.InputTuple,
+    UserRegisteredEvent.OutputTuple,
+    UserRegisteredEvent.OutputObject
   >;
 
   filters: {
@@ -877,6 +1392,17 @@ export interface ClimateDAO extends BaseContract {
       PlatformFeeUpdatedEvent.OutputObject
     >;
 
+    "ProposalApproved(uint256,uint256)": TypedContractEvent<
+      ProposalApprovedEvent.InputTuple,
+      ProposalApprovedEvent.OutputTuple,
+      ProposalApprovedEvent.OutputObject
+    >;
+    ProposalApproved: TypedContractEvent<
+      ProposalApprovedEvent.InputTuple,
+      ProposalApprovedEvent.OutputTuple,
+      ProposalApprovedEvent.OutputObject
+    >;
+
     "ProposalCreated(uint256,address,address,string,uint256)": TypedContractEvent<
       ProposalCreatedEvent.InputTuple,
       ProposalCreatedEvent.OutputTuple,
@@ -886,6 +1412,50 @@ export interface ClimateDAO extends BaseContract {
       ProposalCreatedEvent.InputTuple,
       ProposalCreatedEvent.OutputTuple,
       ProposalCreatedEvent.OutputObject
+    >;
+
+    "ProposalReviewed(uint256,bool,string)": TypedContractEvent<
+      ProposalReviewedEvent.InputTuple,
+      ProposalReviewedEvent.OutputTuple,
+      ProposalReviewedEvent.OutputObject
+    >;
+    ProposalReviewed: TypedContractEvent<
+      ProposalReviewedEvent.InputTuple,
+      ProposalReviewedEvent.OutputTuple,
+      ProposalReviewedEvent.OutputObject
+    >;
+
+    "ProposalSubmitted(uint256,address,string)": TypedContractEvent<
+      ProposalSubmittedEvent.InputTuple,
+      ProposalSubmittedEvent.OutputTuple,
+      ProposalSubmittedEvent.OutputObject
+    >;
+    ProposalSubmitted: TypedContractEvent<
+      ProposalSubmittedEvent.InputTuple,
+      ProposalSubmittedEvent.OutputTuple,
+      ProposalSubmittedEvent.OutputObject
+    >;
+
+    "UserProfileUpdated(address,uint256,uint256,uint256)": TypedContractEvent<
+      UserProfileUpdatedEvent.InputTuple,
+      UserProfileUpdatedEvent.OutputTuple,
+      UserProfileUpdatedEvent.OutputObject
+    >;
+    UserProfileUpdated: TypedContractEvent<
+      UserProfileUpdatedEvent.InputTuple,
+      UserProfileUpdatedEvent.OutputTuple,
+      UserProfileUpdatedEvent.OutputObject
+    >;
+
+    "UserRegistered(address,uint256)": TypedContractEvent<
+      UserRegisteredEvent.InputTuple,
+      UserRegisteredEvent.OutputTuple,
+      UserRegisteredEvent.OutputObject
+    >;
+    UserRegistered: TypedContractEvent<
+      UserRegisteredEvent.InputTuple,
+      UserRegisteredEvent.OutputTuple,
+      UserRegisteredEvent.OutputObject
     >;
   };
 }

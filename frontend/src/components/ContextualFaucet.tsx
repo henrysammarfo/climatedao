@@ -12,7 +12,7 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { useTokenBalance } from '../hooks/useTokenBalance'
-import { useClaimTokens } from '../hooks/useContracts'
+import { useClaimInitialTokens, useClaimDailyTokens, useClaimStatus } from '../hooks/useContracts'
 import FaucetButton from './FaucetButton'
 import toast from 'react-hot-toast'
 import { xdcTestnet } from 'viem/chains'
@@ -50,7 +50,9 @@ const ContextualFaucet = ({
     refreshBalances,
     isLoaded 
   } = useTokenBalance()
-  const { claimTokens, isPending: isClaiming } = useClaimTokens()
+  const { claimInitialTokens, isPending: isClaimingInitial } = useClaimInitialTokens()
+  const { claimDailyTokens, isPending: isClaimingDaily } = useClaimDailyTokens()
+  const { canClaim } = useClaimStatus()
   
   const [steps, setSteps] = useState<OnboardingStep[]>([])
   const [currentStep, setCurrentStep] = useState(0)
@@ -112,14 +114,14 @@ const ContextualFaucet = ({
         completed: false,
         action: async () => {
           try {
-            await claimTokens()
-            toast.success('CLIMATE tokens claimed successfully!')
+            await claimInitialTokens()
+            toast.success('Initial CLIMATE tokens claimed successfully!')
             setTimeout(() => refreshBalances(), 2000)
           } catch (error) {
-            console.error('Failed to claim tokens:', error)
+            console.error('Failed to claim initial tokens:', error)
           }
         },
-        actionText: isClaiming ? 'Claiming...' : 'Claim CLIMATE Tokens'
+        actionText: isClaimingInitial ? 'Claiming...' : 'Claim CLIMATE Tokens'
       })
     }
 
@@ -316,7 +318,7 @@ const ContextualFaucet = ({
                     {steps[currentStep]?.action && (
                       <button
                         onClick={steps[currentStep]?.action}
-                        disabled={isClaiming}
+                        disabled={isClaimingInitial || isClaimingDaily}
                         className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                       >
                         <span>{steps[currentStep]?.actionText}</span>
@@ -379,18 +381,23 @@ const ContextualFaucet = ({
                 <button
                   onClick={async () => {
                     try {
-                      await claimTokens()
-                      toast.success('CLIMATE tokens claimed successfully!')
+                      if (canClaim) {
+                        await claimDailyTokens()
+                        toast.success('Daily CLIMATE tokens claimed successfully!')
+                      } else {
+                        await claimInitialTokens()
+                        toast.success('Initial CLIMATE tokens claimed successfully!')
+                      }
                       setTimeout(() => refreshBalances(), 2000)
                     } catch (error) {
                       console.error('Failed to claim tokens:', error)
                     }
                   }}
-                  disabled={isClaiming}
+                  disabled={isClaimingInitial || isClaimingDaily}
                   className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>{isClaiming ? 'Claiming...' : 'Claim CLIMATE'}</span>
+                  <span>{(isClaimingInitial || isClaimingDaily) ? 'Claiming...' : 'Claim CLIMATE'}</span>
                 </button>
               )}
             </div>

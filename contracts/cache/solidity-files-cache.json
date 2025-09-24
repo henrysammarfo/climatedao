@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\ez\\Desktop\\climatedao\\contracts\\contracts\\ClimateDAO.sol": {
-      "lastModificationDate": 1758508950296,
-      "contentHash": "55f84162c465f518e3ac82c54eea00d6",
+      "lastModificationDate": 1758717716024,
+      "contentHash": "ebff7014f265d05b2744654f5347d0af",
       "sourceName": "contracts/ClimateDAO.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -44,8 +44,8 @@
       ]
     },
     "C:\\Users\\ez\\Desktop\\climatedao\\contracts\\contracts\\ClimateToken.sol": {
-      "lastModificationDate": 1758506336254,
-      "contentHash": "74068c3bb23ea09259f692405aea4832",
+      "lastModificationDate": 1758717181210,
+      "contentHash": "f822ff66f911fc2f6c1c8cf1787059b8",
       "sourceName": "contracts/ClimateToken.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -85,8 +85,8 @@
       ]
     },
     "C:\\Users\\ez\\Desktop\\climatedao\\contracts\\contracts\\Proposal.sol": {
-      "lastModificationDate": 1758506336254,
-      "contentHash": "56613cac504e5fef280aac4058078dc7",
+      "lastModificationDate": 1758630008277,
+      "contentHash": "47fe9f53ecd80472a996355fad6ce5de",
       "sourceName": "contracts/Proposal.sol",
       "solcConfig": {
         "version": "0.8.24",

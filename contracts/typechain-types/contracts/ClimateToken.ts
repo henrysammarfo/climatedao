@@ -38,27 +38,40 @@ export declare namespace Checkpoints {
 export interface ClimateTokenInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "CLAIM_COOLDOWN"
       | "CLOCK_MODE"
+      | "DAILY_CLAIM_AMOUNT"
       | "DOMAIN_SEPARATOR"
       | "INITIAL_SUPPLY"
-      | "MINT_AMOUNT"
+      | "MAX_DAILY_CLAIMS"
+      | "MIN_STAKING_AMOUNT"
+      | "STAKING_REWARD_RATE"
       | "allowance"
       | "approve"
       | "balanceOf"
       | "burn"
+      | "calculateRewards"
       | "checkpoints"
-      | "claimTokens"
+      | "claimDailyTokens"
+      | "claimInitialTokens"
+      | "claimRewards"
       | "clock"
       | "contributionScore"
+      | "dailyClaimCount"
       | "decimals"
       | "delegate"
       | "delegateBySig"
       | "delegates"
       | "eip712Domain"
+      | "getClaimStatus"
       | "getPastTotalSupply"
       | "getPastVotes"
+      | "getStakingInfo"
       | "getVotes"
-      | "hasClaimed"
+      | "hasClaimedInitial"
+      | "lastClaimDay"
+      | "lastClaimTime"
+      | "lastRewardClaimTime"
       | "mintForContribution"
       | "name"
       | "nonces"
@@ -66,11 +79,15 @@ export interface ClimateTokenInterface extends Interface {
       | "owner"
       | "permit"
       | "renounceOwnership"
+      | "stakeTokens"
+      | "stakedAmount"
+      | "stakingStartTime"
       | "symbol"
       | "totalSupply"
       | "transfer"
       | "transferFrom"
       | "transferOwnership"
+      | "unstakeTokens"
       | "updateContributionScore"
   ): FunctionFragment;
 
@@ -78,16 +95,28 @@ export interface ClimateTokenInterface extends Interface {
     nameOrSignatureOrTopic:
       | "Approval"
       | "ContributionScoreUpdated"
+      | "DailyTokensClaimed"
       | "DelegateChanged"
       | "DelegateVotesChanged"
       | "EIP712DomainChanged"
       | "OwnershipTransferred"
+      | "RewardsClaimed"
       | "TokensClaimed"
+      | "TokensStaked"
+      | "TokensUnstaked"
       | "Transfer"
   ): EventFragment;
 
   encodeFunctionData(
+    functionFragment: "CLAIM_COOLDOWN",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "CLOCK_MODE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "DAILY_CLAIM_AMOUNT",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -99,7 +128,15 @@ export interface ClimateTokenInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "MINT_AMOUNT",
+    functionFragment: "MAX_DAILY_CLAIMS",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "MIN_STAKING_AMOUNT",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "STAKING_REWARD_RATE",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -116,16 +153,32 @@ export interface ClimateTokenInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "burn", values: [BigNumberish]): string;
   encodeFunctionData(
+    functionFragment: "calculateRewards",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "checkpoints",
     values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "claimTokens",
+    functionFragment: "claimDailyTokens",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "claimInitialTokens",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "claimRewards",
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "clock", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "contributionScore",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "dailyClaimCount",
     values: [AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "decimals", values?: undefined): string;
@@ -153,6 +206,10 @@ export interface ClimateTokenInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "getClaimStatus",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getPastTotalSupply",
     values: [BigNumberish]
   ): string;
@@ -161,11 +218,27 @@ export interface ClimateTokenInterface extends Interface {
     values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "getStakingInfo",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getVotes",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "hasClaimed",
+    functionFragment: "hasClaimedInitial",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "lastClaimDay",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "lastClaimTime",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "lastRewardClaimTime",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
@@ -195,6 +268,18 @@ export interface ClimateTokenInterface extends Interface {
     functionFragment: "renounceOwnership",
     values?: undefined
   ): string;
+  encodeFunctionData(
+    functionFragment: "stakeTokens",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "stakedAmount",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "stakingStartTime",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(functionFragment: "symbol", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "totalSupply",
@@ -213,11 +298,23 @@ export interface ClimateTokenInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "unstakeTokens",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "updateContributionScore",
     values: [AddressLike, BigNumberish]
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "CLAIM_COOLDOWN",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "CLOCK_MODE", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "DAILY_CLAIM_AMOUNT",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "DOMAIN_SEPARATOR",
     data: BytesLike
@@ -227,7 +324,15 @@ export interface ClimateTokenInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "MINT_AMOUNT",
+    functionFragment: "MAX_DAILY_CLAIMS",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "MIN_STAKING_AMOUNT",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "STAKING_REWARD_RATE",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "allowance", data: BytesLike): Result;
@@ -235,16 +340,32 @@ export interface ClimateTokenInterface extends Interface {
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "burn", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "calculateRewards",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "checkpoints",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "claimTokens",
+    functionFragment: "claimDailyTokens",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "claimInitialTokens",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "claimRewards",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "clock", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "contributionScore",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "dailyClaimCount",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
@@ -259,6 +380,10 @@ export interface ClimateTokenInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "getClaimStatus",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "getPastTotalSupply",
     data: BytesLike
   ): Result;
@@ -266,8 +391,27 @@ export interface ClimateTokenInterface extends Interface {
     functionFragment: "getPastVotes",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "getStakingInfo",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "getVotes", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "hasClaimed", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "hasClaimedInitial",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "lastClaimDay",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "lastClaimTime",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "lastRewardClaimTime",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "mintForContribution",
     data: BytesLike
@@ -284,6 +428,18 @@ export interface ClimateTokenInterface extends Interface {
     functionFragment: "renounceOwnership",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "stakeTokens",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "stakedAmount",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "stakingStartTime",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "symbol", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "totalSupply",
@@ -296,6 +452,10 @@ export interface ClimateTokenInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "unstakeTokens",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -328,6 +488,24 @@ export namespace ContributionScoreUpdatedEvent {
   export interface OutputObject {
     user: string;
     newScore: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace DailyTokensClaimedEvent {
+  export type InputTuple = [
+    user: AddressLike,
+    amount: BigNumberish,
+    claimCount: BigNumberish
+  ];
+  export type OutputTuple = [user: string, amount: bigint, claimCount: bigint];
+  export interface OutputObject {
+    user: string;
+    amount: bigint;
+    claimCount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -402,7 +580,46 @@ export namespace OwnershipTransferredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace RewardsClaimedEvent {
+  export type InputTuple = [user: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [user: string, amount: bigint];
+  export interface OutputObject {
+    user: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace TokensClaimedEvent {
+  export type InputTuple = [user: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [user: string, amount: bigint];
+  export interface OutputObject {
+    user: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace TokensStakedEvent {
+  export type InputTuple = [user: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [user: string, amount: bigint];
+  export interface OutputObject {
+    user: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace TokensUnstakedEvent {
   export type InputTuple = [user: AddressLike, amount: BigNumberish];
   export type OutputTuple = [user: string, amount: bigint];
   export interface OutputObject {
@@ -476,13 +693,21 @@ export interface ClimateToken extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  CLAIM_COOLDOWN: TypedContractMethod<[], [bigint], "view">;
+
   CLOCK_MODE: TypedContractMethod<[], [string], "view">;
+
+  DAILY_CLAIM_AMOUNT: TypedContractMethod<[], [bigint], "view">;
 
   DOMAIN_SEPARATOR: TypedContractMethod<[], [string], "view">;
 
   INITIAL_SUPPLY: TypedContractMethod<[], [bigint], "view">;
 
-  MINT_AMOUNT: TypedContractMethod<[], [bigint], "view">;
+  MAX_DAILY_CLAIMS: TypedContractMethod<[], [bigint], "view">;
+
+  MIN_STAKING_AMOUNT: TypedContractMethod<[], [bigint], "view">;
+
+  STAKING_REWARD_RATE: TypedContractMethod<[], [bigint], "view">;
 
   allowance: TypedContractMethod<
     [owner: AddressLike, spender: AddressLike],
@@ -500,17 +725,25 @@ export interface ClimateToken extends BaseContract {
 
   burn: TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
 
+  calculateRewards: TypedContractMethod<[user: AddressLike], [bigint], "view">;
+
   checkpoints: TypedContractMethod<
     [account: AddressLike, pos: BigNumberish],
     [Checkpoints.Checkpoint208StructOutput],
     "view"
   >;
 
-  claimTokens: TypedContractMethod<[], [void], "nonpayable">;
+  claimDailyTokens: TypedContractMethod<[], [void], "nonpayable">;
+
+  claimInitialTokens: TypedContractMethod<[], [void], "nonpayable">;
+
+  claimRewards: TypedContractMethod<[], [void], "nonpayable">;
 
   clock: TypedContractMethod<[], [bigint], "view">;
 
   contributionScore: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  dailyClaimCount: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
   decimals: TypedContractMethod<[], [bigint], "view">;
 
@@ -547,6 +780,18 @@ export interface ClimateToken extends BaseContract {
     "view"
   >;
 
+  getClaimStatus: TypedContractMethod<
+    [user: AddressLike],
+    [
+      [boolean, bigint, bigint] & {
+        canClaim: boolean;
+        nextClaimTime: bigint;
+        dailyClaimsRemaining: bigint;
+      }
+    ],
+    "view"
+  >;
+
   getPastTotalSupply: TypedContractMethod<
     [timepoint: BigNumberish],
     [bigint],
@@ -559,9 +804,35 @@ export interface ClimateToken extends BaseContract {
     "view"
   >;
 
+  getStakingInfo: TypedContractMethod<
+    [user: AddressLike],
+    [
+      [bigint, bigint, bigint] & {
+        staked: bigint;
+        rewards: bigint;
+        stakingStart: bigint;
+      }
+    ],
+    "view"
+  >;
+
   getVotes: TypedContractMethod<[account: AddressLike], [bigint], "view">;
 
-  hasClaimed: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+  hasClaimedInitial: TypedContractMethod<
+    [arg0: AddressLike],
+    [boolean],
+    "view"
+  >;
+
+  lastClaimDay: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  lastClaimTime: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  lastRewardClaimTime: TypedContractMethod<
+    [arg0: AddressLike],
+    [bigint],
+    "view"
+  >;
 
   mintForContribution: TypedContractMethod<
     [user: AddressLike, amount: BigNumberish],
@@ -593,6 +864,16 @@ export interface ClimateToken extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
+  stakeTokens: TypedContractMethod<
+    [amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  stakedAmount: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  stakingStartTime: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
   symbol: TypedContractMethod<[], [string], "view">;
 
   totalSupply: TypedContractMethod<[], [bigint], "view">;
@@ -615,6 +896,12 @@ export interface ClimateToken extends BaseContract {
     "nonpayable"
   >;
 
+  unstakeTokens: TypedContractMethod<
+    [amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   updateContributionScore: TypedContractMethod<
     [user: AddressLike, score: BigNumberish],
     [void],
@@ -626,8 +913,14 @@ export interface ClimateToken extends BaseContract {
   ): T;
 
   getFunction(
+    nameOrSignature: "CLAIM_COOLDOWN"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "CLOCK_MODE"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "DAILY_CLAIM_AMOUNT"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "DOMAIN_SEPARATOR"
   ): TypedContractMethod<[], [string], "view">;
@@ -635,7 +928,13 @@ export interface ClimateToken extends BaseContract {
     nameOrSignature: "INITIAL_SUPPLY"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "MINT_AMOUNT"
+    nameOrSignature: "MAX_DAILY_CLAIMS"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "MIN_STAKING_AMOUNT"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "STAKING_REWARD_RATE"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "allowance"
@@ -658,6 +957,9 @@ export interface ClimateToken extends BaseContract {
     nameOrSignature: "burn"
   ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "calculateRewards"
+  ): TypedContractMethod<[user: AddressLike], [bigint], "view">;
+  getFunction(
     nameOrSignature: "checkpoints"
   ): TypedContractMethod<
     [account: AddressLike, pos: BigNumberish],
@@ -665,13 +967,22 @@ export interface ClimateToken extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "claimTokens"
+    nameOrSignature: "claimDailyTokens"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "claimInitialTokens"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "claimRewards"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "clock"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "contributionScore"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "dailyClaimCount"
   ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "decimals"
@@ -714,6 +1025,19 @@ export interface ClimateToken extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "getClaimStatus"
+  ): TypedContractMethod<
+    [user: AddressLike],
+    [
+      [boolean, bigint, bigint] & {
+        canClaim: boolean;
+        nextClaimTime: bigint;
+        dailyClaimsRemaining: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "getPastTotalSupply"
   ): TypedContractMethod<[timepoint: BigNumberish], [bigint], "view">;
   getFunction(
@@ -724,11 +1048,33 @@ export interface ClimateToken extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "getStakingInfo"
+  ): TypedContractMethod<
+    [user: AddressLike],
+    [
+      [bigint, bigint, bigint] & {
+        staked: bigint;
+        rewards: bigint;
+        stakingStart: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "getVotes"
   ): TypedContractMethod<[account: AddressLike], [bigint], "view">;
   getFunction(
-    nameOrSignature: "hasClaimed"
+    nameOrSignature: "hasClaimedInitial"
   ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "lastClaimDay"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "lastClaimTime"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "lastRewardClaimTime"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "mintForContribution"
   ): TypedContractMethod<
@@ -767,6 +1113,15 @@ export interface ClimateToken extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "stakeTokens"
+  ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "stakedAmount"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "stakingStartTime"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
     nameOrSignature: "symbol"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -790,6 +1145,9 @@ export interface ClimateToken extends BaseContract {
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "unstakeTokens"
+  ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "updateContributionScore"
   ): TypedContractMethod<
     [user: AddressLike, score: BigNumberish],
@@ -810,6 +1168,13 @@ export interface ClimateToken extends BaseContract {
     ContributionScoreUpdatedEvent.InputTuple,
     ContributionScoreUpdatedEvent.OutputTuple,
     ContributionScoreUpdatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "DailyTokensClaimed"
+  ): TypedContractEvent<
+    DailyTokensClaimedEvent.InputTuple,
+    DailyTokensClaimedEvent.OutputTuple,
+    DailyTokensClaimedEvent.OutputObject
   >;
   getEvent(
     key: "DelegateChanged"
@@ -840,11 +1205,32 @@ export interface ClimateToken extends BaseContract {
     OwnershipTransferredEvent.OutputObject
   >;
   getEvent(
+    key: "RewardsClaimed"
+  ): TypedContractEvent<
+    RewardsClaimedEvent.InputTuple,
+    RewardsClaimedEvent.OutputTuple,
+    RewardsClaimedEvent.OutputObject
+  >;
+  getEvent(
     key: "TokensClaimed"
   ): TypedContractEvent<
     TokensClaimedEvent.InputTuple,
     TokensClaimedEvent.OutputTuple,
     TokensClaimedEvent.OutputObject
+  >;
+  getEvent(
+    key: "TokensStaked"
+  ): TypedContractEvent<
+    TokensStakedEvent.InputTuple,
+    TokensStakedEvent.OutputTuple,
+    TokensStakedEvent.OutputObject
+  >;
+  getEvent(
+    key: "TokensUnstaked"
+  ): TypedContractEvent<
+    TokensUnstakedEvent.InputTuple,
+    TokensUnstakedEvent.OutputTuple,
+    TokensUnstakedEvent.OutputObject
   >;
   getEvent(
     key: "Transfer"
@@ -875,6 +1261,17 @@ export interface ClimateToken extends BaseContract {
       ContributionScoreUpdatedEvent.InputTuple,
       ContributionScoreUpdatedEvent.OutputTuple,
       ContributionScoreUpdatedEvent.OutputObject
+    >;
+
+    "DailyTokensClaimed(address,uint256,uint256)": TypedContractEvent<
+      DailyTokensClaimedEvent.InputTuple,
+      DailyTokensClaimedEvent.OutputTuple,
+      DailyTokensClaimedEvent.OutputObject
+    >;
+    DailyTokensClaimed: TypedContractEvent<
+      DailyTokensClaimedEvent.InputTuple,
+      DailyTokensClaimedEvent.OutputTuple,
+      DailyTokensClaimedEvent.OutputObject
     >;
 
     "DelegateChanged(address,address,address)": TypedContractEvent<
@@ -921,6 +1318,17 @@ export interface ClimateToken extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
+    "RewardsClaimed(address,uint256)": TypedContractEvent<
+      RewardsClaimedEvent.InputTuple,
+      RewardsClaimedEvent.OutputTuple,
+      RewardsClaimedEvent.OutputObject
+    >;
+    RewardsClaimed: TypedContractEvent<
+      RewardsClaimedEvent.InputTuple,
+      RewardsClaimedEvent.OutputTuple,
+      RewardsClaimedEvent.OutputObject
+    >;
+
     "TokensClaimed(address,uint256)": TypedContractEvent<
       TokensClaimedEvent.InputTuple,
       TokensClaimedEvent.OutputTuple,
@@ -930,6 +1338,28 @@ export interface ClimateToken extends BaseContract {
       TokensClaimedEvent.InputTuple,
       TokensClaimedEvent.OutputTuple,
       TokensClaimedEvent.OutputObject
+    >;
+
+    "TokensStaked(address,uint256)": TypedContractEvent<
+      TokensStakedEvent.InputTuple,
+      TokensStakedEvent.OutputTuple,
+      TokensStakedEvent.OutputObject
+    >;
+    TokensStaked: TypedContractEvent<
+      TokensStakedEvent.InputTuple,
+      TokensStakedEvent.OutputTuple,
+      TokensStakedEvent.OutputObject
+    >;
+
+    "TokensUnstaked(address,uint256)": TypedContractEvent<
+      TokensUnstakedEvent.InputTuple,
+      TokensUnstakedEvent.OutputTuple,
+      TokensUnstakedEvent.OutputObject
+    >;
+    TokensUnstaked: TypedContractEvent<
+      TokensUnstakedEvent.InputTuple,
+      TokensUnstakedEvent.OutputTuple,
+      TokensUnstakedEvent.OutputObject
     >;
 
     "Transfer(address,address,uint256)": TypedContractEvent<
