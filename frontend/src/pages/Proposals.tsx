@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Search, 
@@ -14,8 +14,12 @@ import {
 import { useProposalEvents } from '../hooks/useProposalEvents'
 import { useTokenBalance } from '../hooks/useTokenBalance'
 import { ProposalListSkeleton, ProposalHeaderSkeleton, ProposalSearchSkeleton } from '../components/ProposalSkeleton'
-import VirtualizedProposalList from '../components/VirtualizedProposalList'
-import ContextualFaucet from '../components/ContextualFaucet'
+import LoadingSpinner from '../components/LoadingSpinner'
+
+// Lazy load heavy components
+const VirtualizedProposalList = lazy(() => import('../components/VirtualizedProposalList'))
+const ContextualFaucet = lazy(() => import('../components/ContextualFaucet'))
+
 import { performanceService } from '../services/performanceService'
 import toast from 'react-hot-toast'
 
@@ -89,11 +93,13 @@ const Proposals = () => {
     <div className="space-y-8">
       {/* Contextual Faucet Banner */}
       {showContextualFaucet && (
-        <ContextualFaucet 
-          mode="banner" 
-          action="vote"
-          className="mb-6"
-        />
+        <Suspense fallback={<div className="mb-6 p-4 bg-blue-50 rounded-lg"><LoadingSpinner size="sm" /> Loading faucet...</div>}>
+          <ContextualFaucet 
+            mode="banner" 
+            action="vote"
+            className="mb-6"
+          />
+        </Suspense>
       )}
 
       {/* Header */}
@@ -223,11 +229,13 @@ const Proposals = () => {
       </div>
 
       {/* Virtualized Proposals List */}
-      <VirtualizedProposalList
-        proposals={filteredProposals}
-        isLoading={isLoading}
-        className="min-h-[400px]"
-      />
+      <Suspense fallback={<ProposalListSkeleton count={5} />}>
+        <VirtualizedProposalList
+          proposals={filteredProposals}
+          isLoading={isLoading}
+          className="min-h-[400px]"
+        />
+      </Suspense>
     </div>
   )
 }

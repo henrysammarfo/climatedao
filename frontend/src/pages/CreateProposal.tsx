@@ -1,17 +1,21 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAccount, useSwitchChain } from 'wagmi'
 import { ArrowLeft, Upload, Sparkles, Brain, TrendingUp, Users, DollarSign, AlertTriangle, CheckCircle, XCircle, Wifi, WifiOff } from 'lucide-react'
 import { useAI } from '../hooks/useAI'
 import { useCreateProposal } from '../hooks/useContracts'
-import { useTribes } from '../hooks/useTribes'
 import { useTokenBalance } from '../hooks/useTokenBalance'
 import { ProposalData, AIService } from '../services/aiService'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { AIErrorBoundary } from '../components/AIErrorHandler'
-import ContextualFaucet from '../components/ContextualFaucet'
 import { validateProposalData, sanitizeInput } from '../utils/security'
 import toast from 'react-hot-toast'
+
+// Lazy load heavy components
+const ContextualFaucet = lazy(() => import('../components/ContextualFaucet'))
+
+// Import hooks normally but use conditionally
+import { useTribes } from '../hooks/useTribes'
 
 const CreateProposal = () => {
   const navigate = useNavigate()
@@ -358,11 +362,13 @@ const CreateProposal = () => {
 
       {/* Token Requirements Warning */}
       {address && isCorrectNetwork && !proposalRequirements.canCreateProposal && (
-        <ContextualFaucet 
-          mode="banner" 
-          action="createProposal"
-          className="mb-6"
-        />
+        <Suspense fallback={<div className="mb-6 p-4 bg-blue-50 rounded-lg"><LoadingSpinner size="sm" /> Loading faucet...</div>}>
+          <ContextualFaucet 
+            mode="banner" 
+            action="createProposal"
+            className="mb-6"
+          />
+        </Suspense>
       )}
 
       {/* Header */}
@@ -556,11 +562,13 @@ const CreateProposal = () => {
               <div className="space-y-4">
                 {/* Token Requirements Check */}
                 {address && isCorrectNetwork && !proposalRequirements.canCreateProposal && (
-                  <ContextualFaucet 
-                    mode="inline" 
-                    action="createProposal"
-                    className="mb-4"
-                  />
+                  <Suspense fallback={<div className="mb-4 p-2 bg-blue-50 rounded"><LoadingSpinner size="sm" /> Loading...</div>}>
+                    <ContextualFaucet 
+                      mode="inline" 
+                      action="createProposal"
+                      className="mb-4"
+                    />
+                  </Suspense>
                 )}
                 
                 <div className="flex space-x-4">

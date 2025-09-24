@@ -9,24 +9,32 @@ import {
   Crown
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
-import TribesDashboard from '../components/TribesDashboard'
-import { TribesErrorBoundary, TribesStatusIndicator } from '../components/TribesErrorHandler'
+import { useState, lazy, Suspense, useEffect } from 'react'
+import LoadingSpinner from '../components/LoadingSpinner'
+
+// Lazy load heavy components
+const TribesDashboard = lazy(() => import('../components/TribesDashboard'))
+const TribesErrorBoundary = lazy(() => import('../components/TribesErrorHandler').then(m => ({ default: m.TribesErrorBoundary })))
+const TribesStatusIndicator = lazy(() => import('../components/TribesErrorHandler').then(m => ({ default: m.TribesStatusIndicator })))
+const AchievementCard = lazy(() => import('../components/AchievementCard'))
+const AchievementNotification = lazy(() => import('../components/AchievementNotification'))
+
+// Import hooks normally but use them conditionally
 import { useTribes } from '../hooks/useTribes'
 import { useAchievements } from '../hooks/useAchievements'
-import { useStakingInfo, useDAOStats, useUserProposals, useUserVotes } from '../hooks/useContracts'
-import AchievementCard from '../components/AchievementCard'
-import AchievementNotification from '../components/AchievementNotification'
-import { useState } from 'react'
+import { useStakingInfo, useUserProposals, useUserVotes } from '../hooks/useContracts'
 
 const Dashboard = () => {
   const { address } = useAccount()
-  const { userProfile, isConfigurationValid } = useTribes()
+  const [loadAdvancedFeatures, setLoadAdvancedFeatures] = useState(false)
+  
+  // Load basic data immediately
   const { formattedStaked, formattedRewards } = useStakingInfo()
-  const { } = useDAOStats()
   const { userProposals } = useUserProposals(address)
   const { userVotes } = useUserVotes()
   
-  // Achievement system
+  // Load advanced features only after initial load
+  const { userProfile, isConfigurationValid } = useTribes()
   const { 
     isLoading: achievementsLoading, 
     getAchievementStats,
@@ -42,12 +50,21 @@ const Dashboard = () => {
   const [achievementSort, setAchievementSort] = useState<'name' | 'category' | 'progress' | 'earned_date' | 'xp_reward'>('progress')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   
-  const achievementStats = getAchievementStats()
-  const achievementsByCategory = getAchievementsByCategory()
-  const filteredAchievements = sortAchievements(
+  // Load advanced features after initial render
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadAdvancedFeatures(true)
+    }, 100) // Small delay to allow initial render
+    
+    return () => clearTimeout(timer)
+  }, [])
+  
+  const achievementStats = loadAdvancedFeatures ? getAchievementStats() : { earnedAchievements: 0, totalAchievements: 0, completionPercentage: 0 }
+  const achievementsByCategory = loadAdvancedFeatures ? getAchievementsByCategory() : {}
+  const filteredAchievements = loadAdvancedFeatures ? sortAchievements(
     filterAchievements(achievementFilter, selectedCategory || undefined),
     achievementSort
-  )
+  ) : []
   
   const stats = [
     { label: 'Your Proposals', value: userProposals?.length.toString() || '0', icon: FileText, change: 'Active proposals' },
@@ -146,84 +163,103 @@ const Dashboard = () => {
           <div className="card">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">Achievements</h2>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span>{achievementStats.earnedAchievements}/{achievementStats.totalAchievements}</span>
-                <span>•</span>
-                <span>{Math.round(achievementStats.completionPercentage)}%</span>
-              </div>
-            </div>
-            
-            {/* Achievement Filters */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              <select
-                value={achievementFilter}
-                onChange={(e) => setAchievementFilter(e.target.value as any)}
-                className="text-sm border border-gray-300 rounded-md px-2 py-1"
-              >
-                <option value="all">All</option>
-                <option value="earned">Earned</option>
-                <option value="in_progress">In Progress</option>
-                <option value="locked">Locked</option>
-              </select>
-              
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="text-sm border border-gray-300 rounded-md px-2 py-1"
-              >
-                <option value="">All Categories</option>
-                {Object.keys(achievementsByCategory).map(category => (
-                  <option key={category} value={category}>
-                    {category.replace('_', ' ').toUpperCase()}
-                  </option>
-                ))}
-              </select>
-              
-              <select
-                value={achievementSort}
-                onChange={(e) => setAchievementSort(e.target.value as any)}
-                className="text-sm border border-gray-300 rounded-md px-2 py-1"
-              >
-                <option value="progress">Progress</option>
-                <option value="name">Name</option>
-                <option value="category">Category</option>
-                <option value="xp_reward">XP Reward</option>
-                <option value="earned_date">Date Earned</option>
-              </select>
-            </div>
-
-            {/* Achievements List */}
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {achievementsLoading ? (
-                <div className="text-center py-8 text-gray-500">
-                  Loading achievements...
-                </div>
-              ) : filteredAchievements.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No achievements found
+              {loadAdvancedFeatures ? (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>{achievementStats.earnedAchievements}/{achievementStats.totalAchievements}</span>
+                  <span>•</span>
+                  <span>{Math.round(achievementStats.completionPercentage)}%</span>
                 </div>
               ) : (
-                filteredAchievements.slice(0, 6).map((achievement) => (
-                  <AchievementCard
-                    key={achievement.id}
-                    achievement={achievement}
-                    isEarned={achievement.isEarned}
-                    showProgress={true}
-                    onClick={() => {
-                      setCurrentAchievement(achievement)
-                      setShowAchievementNotification(true)
-                    }}
-                    className="hover:shadow-md transition-shadow"
-                  />
-                ))
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <LoadingSpinner size="sm" />
+                  <span>Loading...</span>
+                </div>
               )}
             </div>
             
-            {filteredAchievements.length > 6 && (
-              <div className="mt-4 text-center">
-                <button className="text-sm text-primary-600 hover:text-primary-700">
-                  View All Achievements
-                </button>
+            {loadAdvancedFeatures ? (
+              <>
+                {/* Achievement Filters */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <select
+                    value={achievementFilter}
+                    onChange={(e) => setAchievementFilter(e.target.value as any)}
+                    className="text-sm border border-gray-300 rounded-md px-2 py-1"
+                  >
+                    <option value="all">All</option>
+                    <option value="earned">Earned</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="locked">Locked</option>
+                  </select>
+                  
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="text-sm border border-gray-300 rounded-md px-2 py-1"
+                  >
+                    <option value="">All Categories</option>
+                    {Object.keys(achievementsByCategory).map(category => (
+                      <option key={category} value={category}>
+                        {category.replace('_', ' ').toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    value={achievementSort}
+                    onChange={(e) => setAchievementSort(e.target.value as any)}
+                    className="text-sm border border-gray-300 rounded-md px-2 py-1"
+                  >
+                    <option value="progress">Progress</option>
+                    <option value="name">Name</option>
+                    <option value="category">Category</option>
+                    <option value="xp_reward">XP Reward</option>
+                    <option value="earned_date">Date Earned</option>
+                  </select>
+                </div>
+
+                {/* Achievements List */}
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {achievementsLoading ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <LoadingSpinner size="sm" />
+                      <p className="mt-2">Loading achievements...</p>
+                    </div>
+                  ) : filteredAchievements.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No achievements found
+                    </div>
+                  ) : (
+                    <Suspense fallback={<div className="text-center py-4"><LoadingSpinner size="sm" /></div>}>
+                      {filteredAchievements.slice(0, 6).map((achievement) => (
+                        <AchievementCard
+                          key={achievement.id}
+                          achievement={achievement}
+                          isEarned={achievement.isEarned}
+                          showProgress={true}
+                          onClick={() => {
+                            setCurrentAchievement(achievement)
+                            setShowAchievementNotification(true)
+                          }}
+                          className="hover:shadow-md transition-shadow"
+                        />
+                      ))}
+                    </Suspense>
+                  )}
+                </div>
+                
+                {filteredAchievements.length > 6 && (
+                  <div className="mt-4 text-center">
+                    <button className="text-sm text-primary-600 hover:text-primary-700">
+                      View All Achievements
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <LoadingSpinner size="sm" />
+                <p className="mt-2">Loading achievements...</p>
               </div>
             )}
           </div>
@@ -262,43 +298,66 @@ const Dashboard = () => {
             <Crown className="w-6 h-6 text-primary-600" />
             <h2 className="text-xl font-semibold">Tribes OS Community</h2>
           </div>
-          <TribesStatusIndicator 
-            status={isConfigurationValid ? 'connected' : 'configuration-error'} 
-          />
+          {loadAdvancedFeatures ? (
+            <Suspense fallback={<LoadingSpinner size="sm" />}>
+              <TribesStatusIndicator 
+                status={isConfigurationValid ? 'connected' : 'configuration-error'} 
+              />
+            </Suspense>
+          ) : (
+            <LoadingSpinner size="sm" />
+          )}
         </div>
-        <TribesErrorBoundary>
-          <TribesDashboard />
-        </TribesErrorBoundary>
+        {loadAdvancedFeatures ? (
+          <Suspense fallback={
+            <div className="text-center py-8">
+              <LoadingSpinner size="sm" />
+              <p className="mt-2 text-gray-500">Loading Tribes dashboard...</p>
+            </div>
+          }>
+            <TribesErrorBoundary>
+              <TribesDashboard />
+            </TribesErrorBoundary>
+          </Suspense>
+        ) : (
+          <div className="text-center py-8">
+            <LoadingSpinner size="sm" />
+            <p className="mt-2 text-gray-500">Loading Tribes dashboard...</p>
+          </div>
+        )}
       </div>
 
       {/* Achievement Notifications */}
-      {unlockedAchievements.map((achievement, index) => (
-        <AchievementNotification
-          key={`${achievement.id}-${index}`}
-          achievement={achievement}
-          onDismiss={() => {
-            dismissAchievementNotification(achievement.id)
-            markAchievementAsViewed(achievement.id)
-          }}
-          autoDismiss={true}
-          autoDismissDelay={5000}
-          showSound={true}
-          className={`top-${4 + index * 20} right-4`}
-        />
+      {loadAdvancedFeatures && unlockedAchievements.map((achievement, index) => (
+        <Suspense key={`${achievement.id}-${index}`} fallback={null}>
+          <AchievementNotification
+            achievement={achievement}
+            onDismiss={() => {
+              dismissAchievementNotification(achievement.id)
+              markAchievementAsViewed(achievement.id)
+            }}
+            autoDismiss={true}
+            autoDismissDelay={5000}
+            showSound={true}
+            className={`top-${4 + index * 20} right-4`}
+          />
+        </Suspense>
       ))}
       
       {showAchievementNotification && currentAchievement && (
-        <AchievementNotification
-          achievement={currentAchievement}
-          onDismiss={() => {
-            setShowAchievementNotification(false)
-            setCurrentAchievement(null)
-            markAchievementAsViewed(currentAchievement.id)
-          }}
-          autoDismiss={true}
-          autoDismissDelay={5000}
-          showSound={true}
-        />
+        <Suspense fallback={null}>
+          <AchievementNotification
+            achievement={currentAchievement}
+            onDismiss={() => {
+              setShowAchievementNotification(false)
+              setCurrentAchievement(null)
+              markAchievementAsViewed(currentAchievement.id)
+            }}
+            autoDismiss={true}
+            autoDismissDelay={5000}
+            showSound={true}
+          />
+        </Suspense>
       )}
     </div>
   )

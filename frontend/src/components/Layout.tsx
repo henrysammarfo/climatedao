@@ -17,6 +17,7 @@ import { useState } from 'react'
 import { useDarkMode } from '../hooks/useDarkMode'
 import { useTokenBalance } from '../hooks/useTokenBalance'
 import FaucetButton from './FaucetButton'
+import PerformanceMonitor from './PerformanceMonitor'
 
 interface LayoutProps {
   children: ReactNode
@@ -187,6 +188,9 @@ const Layout = ({ children }: LayoutProps) => {
           </div>
         </div>
       </footer>
+
+      {/* Performance Monitor (Development only) */}
+      <PerformanceMonitor />
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { UIProposal } from '../types/proposal'
 export type CachedProposalData = UIProposal & { timestamp: number }
 
 export class EventCache {
-  private static readonly CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
+  private static readonly CACHE_EXPIRY_MS = 15 * 60 * 1000 // 15 minutes - extended for better performance
   private static readonly MAX_CACHE_SIZE = 100 // Maximum number of proposals to cache
 
   /**

@@ -312,7 +312,7 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
     }
   }, [])
 
-  // Auto-refresh proposals periodically (every 5 minutes) with smart refresh
+  // Auto-refresh proposals periodically (every 10 minutes) with smart refresh
   useEffect(() => {
     if (!isInitializedRef.current) return
 
@@ -321,11 +321,11 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
         // Only refresh if we haven't had recent updates
         const timeSinceLastUpdate = Date.now() - (lastUpdatedAt ?? 0)
         
-        if (timeSinceLastUpdate > 2 * 60 * 1000) { // 2 minutes
+        if (timeSinceLastUpdate > 5 * 60 * 1000) { // 5 minutes
           fetchProposals()
         }
       }
-    }, 5 * 60 * 1000) // 5 minutes
+    }, 10 * 60 * 1000) // 10 minutes - reduced frequency for better performance
 
     return () => clearInterval(interval)
   }, [fetchProposals, isLoading, loadingStages.freshDataLoading, lastUpdatedAt])

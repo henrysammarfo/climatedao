@@ -34,10 +34,12 @@ export class ProposalService {
    */
   static async getAllProposals(): Promise<ProposalData[]> {
     try {
-      // Check cache first
+      // Check cache first - extend cache validity for better performance
       const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
       if (EventCache.isCacheValid(CHAIN_ID, CLIMATE_DAO_ADDRESS) && cachedProposals.length > 0) {
         console.log(`Using cached proposals: ${cachedProposals.length} proposals`)
+        // Return cached data immediately and fetch fresh data in background
+        this.getAllProposalsInBackground()
         return cachedProposals
       }
 
@@ -119,6 +121,86 @@ export class ProposalService {
       // Return cached data if available, even if expired
       const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
       return cachedProposals.length > 0 ? cachedProposals : []
+    }
+  }
+
+  /**
+   * Fetch proposals in background without blocking UI
+   */
+  private static async getAllProposalsInBackground(): Promise<void> {
+    try {
+      // Get last fetched block to avoid re-fetching old events
+      const lastFetchedBlock = EventCache.getLastFetchedBlock(CHAIN_ID, CLIMATE_DAO_ADDRESS)
+      const fromBlock = lastFetchedBlock > 0 ? BigInt(lastFetchedBlock + 1) : 'earliest'
+
+      console.log(`Background fetching proposals from block ${fromBlock} to latest`)
+
+      // Get ProposalCreated events
+      const logs = await publicClient.getLogs({
+        address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+        event: PROPOSAL_CREATED_EVENT,
+        fromBlock,
+        toBlock: 'latest'
+      })
+
+      if (logs.length === 0) {
+        // No new events, update last fetched block
+        const currentBlock = await publicClient.getBlockNumber()
+        EventCache.setLastFetchedBlock(CHAIN_ID, CLIMATE_DAO_ADDRESS, Number(currentBlock))
+        return
+      }
+
+      console.log(`Found ${logs.length} new proposal events in background`)
+
+      // Fetch proposal details in parallel for better performance
+      const proposalPromises = logs.map(async (log) => {
+        if (log.args.proposalId && log.args.proposalContract && log.args.proposer) {
+          const proposalId = Number(log.args.proposalId)
+          const proposalAddress = log.args.proposalContract
+          const proposer = log.args.proposer
+          const title = log.args.title || 'Untitled Proposal'
+          const requestedAmount = log.args.requestedAmount || 0n
+
+          try {
+            return await this.getProposalDetails(proposalId, proposalAddress, proposer, title, requestedAmount)
+          } catch (error) {
+            console.error(`Failed to fetch details for proposal ${proposalId}:`, error)
+            return null
+          }
+        }
+        return null
+      })
+
+      // Wait for all proposal details to be fetched
+      const newProposals = (await Promise.allSettled(proposalPromises))
+        .filter((result): result is PromiseFulfilledResult<ProposalData> => 
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map(result => result.value)
+
+      // Merge with cached proposals
+      const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
+      const newProposalsWithTimestamp = newProposals.map(proposal => ({
+        ...proposal,
+        timestamp: Date.now()
+      }))
+      const allProposals = EventCache.mergeProposals(newProposalsWithTimestamp, cachedProposals)
+
+      // Update cache with merged data
+      EventCache.setCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS, allProposals)
+
+      // Update last fetched block
+      if (logs.length > 0) {
+        const latestBlock = Math.max(...logs.map(log => Number(log.blockNumber)))
+        EventCache.setLastFetchedBlock(CHAIN_ID, CLIMATE_DAO_ADDRESS, latestBlock)
+      } else {
+        const currentBlock = await publicClient.getBlockNumber()
+        EventCache.setLastFetchedBlock(CHAIN_ID, CLIMATE_DAO_ADDRESS, Number(currentBlock))
+      }
+
+      console.log(`Background fetch completed: ${allProposals.length} total proposals`)
+    } catch (error) {
+      console.error('Background proposal fetch failed:', error)
     }
   }
 
