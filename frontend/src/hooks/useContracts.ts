@@ -19,6 +19,8 @@ export const useTokenBalance = () => {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: 60000, // 1 minute
     },
   })
 
@@ -48,6 +50,10 @@ export const useDAOStats = () => {
     address: CLIMATE_DAO_ADDRESS as `0x${string}`,
     abi: ClimateDAO_ABI,
     functionName: 'getDAOStats',
+    query: {
+      staleTime: 60000, // 1 minute
+      refetchInterval: 300000, // 5 minutes
+    },
   })
 
   return {
@@ -695,6 +701,8 @@ export const useUserRegistry = () => {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
+      staleTime: 60000, // 1 minute
+      refetchInterval: 300000, // 5 minutes
     },
   })
 
@@ -705,6 +713,8 @@ export const useUserRegistry = () => {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && !!isRegistered,
+      staleTime: 60000, // 1 minute
+      refetchInterval: 300000, // 5 minutes
     },
   })
 

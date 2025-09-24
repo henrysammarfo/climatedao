@@ -8,6 +8,7 @@ import CreateProposal from './pages/CreateProposal'
 import ProposalDetail from './pages/ProposalDetail'
 import Dashboard from './pages/Dashboard'
 import ConnectWallet from './components/ConnectWallet'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useDarkMode } from './hooks/useDarkMode'
 
 function App() {
@@ -19,15 +20,19 @@ function App() {
   }
 
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/proposals" element={<Proposals />} />
-        <Route path="/proposals/:id" element={<ProposalDetail />} />
-        <Route path="/create" element={<CreateProposal />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
-    </Layout>
+    <ErrorBoundary>
+      <Layout>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<ErrorBoundary><Home /></ErrorBoundary>} />
+            <Route path="/proposals" element={<ErrorBoundary><Proposals /></ErrorBoundary>} />
+            <Route path="/proposals/:id" element={<ErrorBoundary><ProposalDetail /></ErrorBoundary>} />
+            <Route path="/create" element={<ErrorBoundary><CreateProposal /></ErrorBoundary>} />
+            <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          </Routes>
+        </ErrorBoundary>
+      </Layout>
+    </ErrorBoundary>
   )
 }
 

@@ -27,55 +27,69 @@ import { useStakingInfo, useUserProposals, useUserVotes } from '../hooks/useCont
 const Dashboard = memo(() => {
   const { address } = useAccount()
   const [loadAdvancedFeatures, setLoadAdvancedFeatures] = useState(false)
+  const [loadTribes, setLoadTribes] = useState(false)
+  const [loadAchievements, setLoadAchievements] = useState(false)
   
-  // Load basic data immediately
+  // Load basic data immediately (non-blocking)
   const { formattedStaked, formattedRewards } = useStakingInfo()
   const { userProposals } = useUserProposals(address)
   const { userVotes } = useUserVotes()
   
-  // Load advanced features only after initial load
-  const { userProfile, isConfigurationValid } = useTribes()
-  const { 
-    isLoading: achievementsLoading, 
-    getAchievementStats,
-    getAchievementsByCategory,
-    filterAchievements,
-    sortAchievements,
-    markAchievementAsViewed,
-    unlockedAchievements,
-    dismissAchievementNotification
-  } = useAchievements()
+  // Load advanced features progressively
+  const { userProfile, isConfigurationValid } = loadTribes ? useTribes() : { userProfile: null, isConfigurationValid: false }
+  const achievementsHook = loadAchievements ? useAchievements() : {
+    isLoading: false,
+    getAchievementStats: () => ({ earnedAchievements: 0, totalAchievements: 0, completionPercentage: 0 }),
+    getAchievementsByCategory: () => ({}),
+    filterAchievements: (_filter: any, _category?: string) => [],
+    sortAchievements: (achievements: any[], _sort: any) => achievements,
+    markAchievementAsViewed: () => {},
+    unlockedAchievements: [],
+    dismissAchievementNotification: () => {}
+  }
   
   const [achievementFilter, setAchievementFilter] = useState<'all' | 'earned' | 'locked' | 'in_progress'>('all')
   const [achievementSort, setAchievementSort] = useState<'name' | 'category' | 'progress' | 'earned_date' | 'xp_reward'>('progress')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   
-  // Load advanced features after initial render
+  // Load advanced features progressively to prevent blocking
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer1 = setTimeout(() => {
       setLoadAdvancedFeatures(true)
     }, 100) // Small delay to allow initial render
     
-    return () => clearTimeout(timer)
+    const timer2 = setTimeout(() => {
+      setLoadTribes(true)
+    }, 500) // Load Tribes after 500ms
+    
+    const timer3 = setTimeout(() => {
+      setLoadAchievements(true)
+    }, 1000) // Load Achievements after 1 second
+    
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+      clearTimeout(timer3)
+    }
   }, [])
   
   // Memoize expensive calculations
   const achievementStats = useMemo(() => 
-    loadAdvancedFeatures ? getAchievementStats() : { earnedAchievements: 0, totalAchievements: 0, completionPercentage: 0 },
-    [loadAdvancedFeatures, getAchievementStats]
+    loadAchievements ? achievementsHook.getAchievementStats() : { earnedAchievements: 0, totalAchievements: 0, completionPercentage: 0 },
+    [loadAchievements, achievementsHook]
   )
   
   const achievementsByCategory = useMemo(() => 
-    loadAdvancedFeatures ? getAchievementsByCategory() : {},
-    [loadAdvancedFeatures, getAchievementsByCategory]
+    loadAchievements ? achievementsHook.getAchievementsByCategory() : {},
+    [loadAchievements, achievementsHook]
   )
   
   const filteredAchievements = useMemo(() => 
-    loadAdvancedFeatures ? sortAchievements(
-      filterAchievements(achievementFilter, selectedCategory || undefined),
+    loadAchievements ? achievementsHook.sortAchievements(
+      achievementsHook.filterAchievements(achievementFilter, selectedCategory || undefined),
       achievementSort
     ) : [],
-    [loadAdvancedFeatures, filterAchievements, sortAchievements, achievementFilter, selectedCategory, achievementSort]
+    [loadAchievements, achievementsHook, achievementFilter, selectedCategory, achievementSort]
   )
   
   // Memoize stats to prevent recalculation
@@ -246,7 +260,12 @@ const Dashboard = memo(() => {
 
                 {/* Achievements List */}
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {achievementsLoading ? (
+                  {!loadAchievements ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <LoadingSpinner size="sm" />
+                      <p className="mt-2">Loading achievements...</p>
+                    </div>
+                  ) : achievementsHook.isLoading ? (
                     <div className="text-center py-8 text-gray-500">
                       <LoadingSpinner size="sm" />
                       <p className="mt-2">Loading achievements...</p>
@@ -354,13 +373,13 @@ const Dashboard = memo(() => {
       </div>
 
       {/* Achievement Notifications */}
-      {loadAdvancedFeatures && unlockedAchievements.map((achievement, index) => (
+      {loadAchievements && achievementsHook.unlockedAchievements.map((achievement, index) => (
         <Suspense key={`${achievement.id}-${index}`} fallback={null}>
           <AchievementNotification
             achievement={achievement}
             onDismiss={() => {
-              dismissAchievementNotification(achievement.id)
-              markAchievementAsViewed(achievement.id)
+              achievementsHook.dismissAchievementNotification(achievement.id)
+              achievementsHook.markAchievementAsViewed(achievement.id)
             }}
             autoDismiss={true}
             autoDismissDelay={5000}
@@ -377,7 +396,9 @@ const Dashboard = memo(() => {
             onDismiss={() => {
               setShowAchievementNotification(false)
               setCurrentAchievement(null)
-              markAchievementAsViewed(currentAchievement.id)
+              if (loadAchievements) {
+                achievementsHook.markAchievementAsViewed(currentAchievement.id)
+              }
             }}
             autoDismiss={true}
             autoDismissDelay={5000}

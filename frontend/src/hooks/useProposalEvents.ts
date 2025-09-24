@@ -183,7 +183,7 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
     })
   }, [])
 
-  // Initialize proposals and event subscription with progressive loading
+  // Initialize proposals with minimal blocking
   useEffect(() => {
     if (isInitializedRef.current) return
     
@@ -191,8 +191,6 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
 
     const initialize = async () => {
       try {
-        setIsLoading(true)
-        
         // Load cached proposals first for immediate display
         const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
         if (cachedProposals.length > 0 && EventCache.isCacheValid(CHAIN_ID, CLIMATE_DAO_ADDRESS)) {
@@ -200,8 +198,17 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
           setIsLoading(false)
           console.log(`Loaded ${cachedProposals.length} proposals from cache`)
         } else {
-          // Only fetch if no cache
-          await fetchProposals()
+          setIsLoading(true)
+          // Fetch in background without blocking
+          setTimeout(async () => {
+            if (mounted) {
+              try {
+                await fetchProposals()
+              } catch (err) {
+                console.error('Background fetch failed:', err)
+              }
+            }
+          }, 100)
         }
 
         // Set up real-time event subscription
