@@ -87,15 +87,15 @@ const Dashboard = memo(() => {
   const filteredAchievements = useMemo(() => 
     loadAchievements ? achievementsHook.sortAchievements(
       achievementsHook.filterAchievements(achievementFilter, selectedCategory || undefined),
-      achievementSort
+    achievementSort
     ) : [],
     [loadAchievements, achievementsHook, achievementFilter, selectedCategory, achievementSort]
   )
   
   // Memoize stats to prevent recalculation
   const stats = useMemo(() => [
-    { label: 'Your Proposals', value: userProposals?.length.toString() || '0', icon: FileText, change: 'Active proposals' },
-    { label: 'Votes Cast', value: userVotes?.length.toString() || '0', icon: Users, change: 'Total votes' },
+    { label: 'Your Proposals', value: (userProposals?.length || 0).toString(), icon: FileText, change: 'Active proposals' },
+    { label: 'Votes Cast', value: (userVotes?.length || 0).toString(), icon: Users, change: 'Total votes' },
     { label: 'Contribution Score', value: userProfile?.xp?.toLocaleString() || '0', icon: Award, change: `Level ${userProfile?.level || 1}` },
     { label: 'Tokens Staked', value: formattedStaked, icon: DollarSign, change: `Rewards: ${formattedRewards} CLIMATE` },
   ], [userProposals?.length, userVotes?.length, userProfile?.xp, userProfile?.level, formattedStaked, formattedRewards])
@@ -115,13 +115,13 @@ const Dashboard = memo(() => {
 
   // Real activity data from user actions
   const recentActivity = [
-    ...(userVotes?.slice(0, 2).map(vote => ({
+    ...((userVotes || []).slice(0, 2).map(vote => ({
       type: 'vote',
       action: `Voted ${vote.choice === 1 ? 'for' : vote.choice === 0 ? 'against' : 'abstained'} on proposal #${vote.proposalId}`,
       time: new Date(vote.timestamp * 1000).toLocaleDateString(),
       icon: Users,
     })) || []),
-    ...(userProposals?.slice(0, 2).map(proposal => ({
+    ...((userProposals || []).slice(0, 2).map(proposal => ({
       type: 'proposal',
       action: `Created "${proposal.title}"`,
       time: new Date(proposal.timestamp * 1000).toLocaleDateString(),
@@ -204,11 +204,11 @@ const Dashboard = memo(() => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">Achievements</h2>
               {loadAdvancedFeatures ? (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span>{achievementStats.earnedAchievements}/{achievementStats.totalAchievements}</span>
-                  <span>•</span>
-                  <span>{Math.round(achievementStats.completionPercentage)}%</span>
-                </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>{achievementStats.earnedAchievements}/{achievementStats.totalAchievements}</span>
+                <span>•</span>
+                <span>{Math.round(achievementStats.completionPercentage)}%</span>
+              </div>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <LoadingSpinner size="sm" />
@@ -219,85 +219,85 @@ const Dashboard = memo(() => {
             
             {loadAdvancedFeatures ? (
               <>
-                {/* Achievement Filters */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <select
-                    value={achievementFilter}
+            {/* Achievement Filters */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <select
+                value={achievementFilter}
                     onChange={handleAchievementFilterChange}
-                    className="text-sm border border-gray-300 rounded-md px-2 py-1"
-                  >
-                    <option value="all">All</option>
-                    <option value="earned">Earned</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="locked">Locked</option>
-                  </select>
-                  
-                  <select
-                    value={selectedCategory}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1"
+              >
+                <option value="all">All</option>
+                <option value="earned">Earned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="locked">Locked</option>
+              </select>
+              
+              <select
+                value={selectedCategory}
                     onChange={handleCategoryChange}
-                    className="text-sm border border-gray-300 rounded-md px-2 py-1"
-                  >
-                    <option value="">All Categories</option>
-                    {Object.keys(achievementsByCategory).map(category => (
-                      <option key={category} value={category}>
-                        {category.replace('_', ' ').toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                  
-                  <select
-                    value={achievementSort}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1"
+              >
+                <option value="">All Categories</option>
+                {Object.keys(achievementsByCategory).map(category => (
+                  <option key={category} value={category}>
+                    {category.replace('_', ' ').toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              
+              <select
+                value={achievementSort}
                     onChange={handleSortChange}
-                    className="text-sm border border-gray-300 rounded-md px-2 py-1"
-                  >
-                    <option value="progress">Progress</option>
-                    <option value="name">Name</option>
-                    <option value="category">Category</option>
-                    <option value="xp_reward">XP Reward</option>
-                    <option value="earned_date">Date Earned</option>
-                  </select>
-                </div>
+                className="text-sm border border-gray-300 rounded-md px-2 py-1"
+              >
+                <option value="progress">Progress</option>
+                <option value="name">Name</option>
+                <option value="category">Category</option>
+                <option value="xp_reward">XP Reward</option>
+                <option value="earned_date">Date Earned</option>
+              </select>
+            </div>
 
-                {/* Achievements List */}
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+            {/* Achievements List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
                   {!loadAchievements ? (
                     <div className="text-center py-8 text-gray-500">
                       <LoadingSpinner size="sm" />
                       <p className="mt-2">Loading achievements...</p>
                     </div>
                   ) : achievementsHook.isLoading ? (
-                    <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500">
                       <LoadingSpinner size="sm" />
                       <p className="mt-2">Loading achievements...</p>
-                    </div>
-                  ) : filteredAchievements.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      No achievements found
-                    </div>
-                  ) : (
+                </div>
+              ) : filteredAchievements.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No achievements found
+                </div>
+              ) : (
                     <Suspense fallback={<div className="text-center py-4"><LoadingSpinner size="sm" /></div>}>
                       {filteredAchievements.slice(0, 6).map((achievement) => (
-                        <AchievementCard
-                          key={achievement.id}
-                          achievement={achievement}
-                          isEarned={achievement.isEarned}
-                          showProgress={true}
-                          onClick={() => {
-                            setCurrentAchievement(achievement)
-                            setShowAchievementNotification(true)
-                          }}
-                          className="hover:shadow-md transition-shadow"
-                        />
+                  <AchievementCard
+                    key={achievement.id}
+                    achievement={achievement}
+                    isEarned={achievement.isEarned}
+                    showProgress={true}
+                    onClick={() => {
+                      setCurrentAchievement(achievement)
+                      setShowAchievementNotification(true)
+                    }}
+                    className="hover:shadow-md transition-shadow"
+                  />
                       ))}
                     </Suspense>
-                  )}
-                </div>
-                
-                {filteredAchievements.length > 6 && (
-                  <div className="mt-4 text-center">
-                    <button className="text-sm text-primary-600 hover:text-primary-700">
-                      View All Achievements
-                    </button>
+              )}
+            </div>
+            
+            {filteredAchievements.length > 6 && (
+              <div className="mt-4 text-center">
+                <button className="text-sm text-primary-600 hover:text-primary-700">
+                  View All Achievements
+                </button>
                   </div>
                 )}
               </>
@@ -323,7 +323,7 @@ const Dashboard = memo(() => {
           </div>
           <div className="text-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <Activity className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-            <div className="text-2xl font-bold text-blue-600">{userVotes?.length || 0}</div>
+            <div className="text-2xl font-bold text-blue-600">{(userVotes || []).length}</div>
             <div className="text-sm text-gray-600 dark:text-gray-300">Projects Supported</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Through voting & funding</div>
           </div>
@@ -345,9 +345,9 @@ const Dashboard = memo(() => {
           </div>
           {loadAdvancedFeatures ? (
             <Suspense fallback={<LoadingSpinner size="sm" />}>
-              <TribesStatusIndicator 
-                status={isConfigurationValid ? 'connected' : 'configuration-error'} 
-              />
+          <TribesStatusIndicator 
+            status={isConfigurationValid ? 'connected' : 'configuration-error'} 
+          />
             </Suspense>
           ) : (
             <LoadingSpinner size="sm" />
@@ -360,9 +360,9 @@ const Dashboard = memo(() => {
               <p className="mt-2 text-gray-500">Loading Tribes dashboard...</p>
             </div>
           }>
-            <TribesErrorBoundary>
-              <TribesDashboard />
-            </TribesErrorBoundary>
+        <TribesErrorBoundary>
+          <TribesDashboard />
+        </TribesErrorBoundary>
           </Suspense>
         ) : (
           <div className="text-center py-8">
@@ -375,35 +375,35 @@ const Dashboard = memo(() => {
       {/* Achievement Notifications */}
       {loadAchievements && achievementsHook.unlockedAchievements.map((achievement, index) => (
         <Suspense key={`${achievement.id}-${index}`} fallback={null}>
-          <AchievementNotification
-            achievement={achievement}
-            onDismiss={() => {
+        <AchievementNotification
+          achievement={achievement}
+          onDismiss={() => {
               achievementsHook.dismissAchievementNotification(achievement.id)
               achievementsHook.markAchievementAsViewed(achievement.id)
-            }}
-            autoDismiss={true}
-            autoDismissDelay={5000}
-            showSound={true}
-            className={`top-${4 + index * 20} right-4`}
-          />
+          }}
+          autoDismiss={true}
+          autoDismissDelay={5000}
+          showSound={true}
+          className={`top-${4 + index * 20} right-4`}
+        />
         </Suspense>
       ))}
       
       {showAchievementNotification && currentAchievement && (
         <Suspense fallback={null}>
-          <AchievementNotification
-            achievement={currentAchievement}
-            onDismiss={() => {
-              setShowAchievementNotification(false)
-              setCurrentAchievement(null)
+        <AchievementNotification
+          achievement={currentAchievement}
+          onDismiss={() => {
+            setShowAchievementNotification(false)
+            setCurrentAchievement(null)
               if (loadAchievements) {
                 achievementsHook.markAchievementAsViewed(currentAchievement.id)
               }
-            }}
-            autoDismiss={true}
-            autoDismissDelay={5000}
-            showSound={true}
-          />
+          }}
+          autoDismiss={true}
+          autoDismissDelay={5000}
+          showSound={true}
+        />
         </Suspense>
       )}
     </div>

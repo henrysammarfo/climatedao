@@ -32,7 +32,7 @@ const Home = memo(() => {
   
   const stats = [
     { label: 'Active Proposals', value: daoStats.totalProposals?.toString() || '0', icon: TrendingUp },
-    { label: 'Community Members', value: tribes.leaderboard.length.toString(), icon: Users },
+    { label: 'Community Members', value: (tribes.leaderboard?.length || 0).toString(), icon: Users },
     { label: 'Funds Raised', value: `$${daoStats.formattedFunds}`, icon: DollarSign },
     { label: 'Projects Funded', value: '0', icon: Leaf }, // Will be updated when proposals are executed
   ]
@@ -56,7 +56,7 @@ const Home = memo(() => {
   ]
 
   // Get real proposals from the blockchain
-  const recentProposals = proposalEvents.proposals.slice(0, 3) // Show latest 3 proposals
+  const recentProposals = (proposalEvents.proposals || []).slice(0, 3) // Show latest 3 proposals
 
   return (
     <div className="space-y-16">

@@ -85,10 +85,10 @@ const Proposals = memo(() => {
   }
 
   // Show contextual faucet if user needs tokens for voting
-  const showContextualFaucet = !votingRequirements.canVote && proposals.length > 0
+  const showContextualFaucet = !votingRequirements.canVote && (proposals?.length || 0) > 0
 
   // Progressive loading: show skeleton while loading initial data
-  if (isLoading && proposals.length === 0) {
+  if (isLoading && (proposals?.length || 0) === 0) {
     return (
       <div className="space-y-8">
         <ProposalHeaderSkeleton />
