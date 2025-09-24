@@ -35,18 +35,12 @@ const Dashboard = memo(() => {
   const { userProposals } = useUserProposals(address)
   const { userVotes } = useUserVotes()
   
-  // Load advanced features progressively
-  const { userProfile, isConfigurationValid } = loadTribes ? useTribes() : { userProfile: null, isConfigurationValid: false }
-  const achievementsHook = loadAchievements ? useAchievements() : {
-    isLoading: false,
-    getAchievementStats: () => ({ earnedAchievements: 0, totalAchievements: 0, completionPercentage: 0 }),
-    getAchievementsByCategory: () => ({}),
-    filterAchievements: (_filter: any, _category?: string) => [],
-    sortAchievements: (achievements: any[], _sort: any) => achievements,
-    markAchievementAsViewed: () => {},
-    unlockedAchievements: [],
-    dismissAchievementNotification: () => {}
-  }
+  // Always call hooks, but conditionally use their data
+  const tribesHook = useTribes()
+  const achievementsHook = useAchievements()
+  
+  // Use data only when loading is enabled
+  const { userProfile, isConfigurationValid } = loadTribes ? tribesHook : { userProfile: null, isConfigurationValid: false }
   
   const [achievementFilter, setAchievementFilter] = useState<'all' | 'earned' | 'locked' | 'in_progress'>('all')
   const [achievementSort, setAchievementSort] = useState<'name' | 'category' | 'progress' | 'earned_date' | 'xp_reward'>('progress')

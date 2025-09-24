@@ -29,6 +29,13 @@ export const useTribes = () => {
       const status = tribesConfigValidator.getConfigurationStatus()
       setConfigurationStatus(status)
       setIsConfigurationValid(status.isValid)
+      
+      // If configuration is invalid, don't proceed with initialization
+      if (!status.isValid) {
+        console.warn('Tribes configuration is invalid, skipping initialization')
+        return status
+      }
+      
       return status
     } catch (error) {
       console.error('Configuration check failed:', error)

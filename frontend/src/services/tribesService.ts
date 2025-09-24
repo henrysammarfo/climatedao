@@ -165,8 +165,8 @@ export class TribesIntegration {
       // Validate configuration first
       const status = tribesConfigValidator.getConfigurationStatus()
       if (!status.isValid) {
-        const errorMessage = `Tribes SDK configuration is invalid:\n${status.errors.join('\n')}\n\nPlease check your environment variables and ensure all required Tribes configuration is set up correctly.`
-        throw new Error(errorMessage)
+        console.warn('Tribes SDK configuration is invalid, skipping initialization:', status.errors.join(', '))
+        return // Skip initialization instead of throwing error
       }
 
       if (!window.ethereum) {

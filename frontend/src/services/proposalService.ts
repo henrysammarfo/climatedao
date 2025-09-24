@@ -49,13 +49,20 @@ export class ProposalService {
 
       console.log(`Fetching proposals from block ${fromBlock} to latest`)
 
-      // Get ProposalCreated events
-      const logs = await publicClient.getLogs({
-        address: CLIMATE_DAO_ADDRESS as `0x${string}`,
-        event: PROPOSAL_CREATED_EVENT,
-        fromBlock,
-        toBlock: 'latest'
-      })
+      // Get ProposalCreated events with error handling
+      let logs
+      try {
+        logs = await publicClient.getLogs({
+          address: CLIMATE_DAO_ADDRESS as `0x${string}`,
+          event: PROPOSAL_CREATED_EVENT,
+          fromBlock,
+          toBlock: 'latest'
+        })
+      } catch (error) {
+        console.warn('Failed to fetch proposal logs, using cached data:', error)
+        const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
+        return cachedProposals || []
+      }
 
       console.log(`Found ${logs.length} new proposal events`)
 
