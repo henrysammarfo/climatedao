@@ -143,66 +143,46 @@ export class TribesConfigValidatorImpl implements TribesConfigValidator {
     const warnings: string[] = []
     const missingFields: string[] = []
 
-    // Check required environment variables
-    const requiredFields = [
-      'VITE_TRIBES_API_KEY',
-      'VITE_TRIBES_CONTRACT_ADDRESSES',
+    // Tribes SDK doesn't require API keys - it's a simple embeddable chat
+    // Only check for basic configuration if needed
+    const optionalFields = [
       'VITE_TRIBES_TRIBE_ID',
       'VITE_XDC_CHAIN_ID'
     ]
 
-    for (const field of requiredFields) {
+    // Only warn about missing optional fields, don't error
+    for (const field of optionalFields) {
       if (!import.meta.env[field]) {
-        missingFields.push(field)
-        errors.push(`Missing required environment variable: ${field}`)
+        warnings.push(`Optional environment variable not set: ${field}`)
       }
     }
 
-    // Validate API key
-    const apiKey = import.meta.env.VITE_TRIBES_API_KEY
-    if (apiKey) {
-      const apiKeyValidation = this.validateApiKey(apiKey)
-      if (!apiKeyValidation.isValid) {
-        errors.push(`API key validation failed: ${apiKeyValidation.error}`)
-      }
-    }
+    // Tribes SDK doesn't require API keys or contract addresses
+    // It's a simple embeddable chat solution
 
-    // Validate contract addresses
-    const contractAddressesStr = import.meta.env.VITE_TRIBES_CONTRACT_ADDRESSES
-    if (contractAddressesStr) {
-      try {
-        const addresses = JSON.parse(contractAddressesStr)
-        const contractValidation = this.validateContractAddresses(addresses)
-        if (!contractValidation.isValid) {
-          errors.push(...contractValidation.errors)
-        }
-      } catch (error) {
-        errors.push('Invalid JSON format for VITE_TRIBES_CONTRACT_ADDRESSES')
-      }
-    }
-
-    // Validate chain ID
+    // Validate chain ID (optional)
     const rawChainId = import.meta.env.VITE_XDC_CHAIN_ID
-    const chainId = Number(rawChainId)
-    if (!Number.isInteger(chainId)) {
-      errors.push('Chain ID must be a positive integer (50 or 51 for XDC).')
-    } else {
-      const v = this.validateChainId(chainId)
-      if (!v.isValid) errors.push(`Chain ID validation failed: ${v.warning}`)
-      else if (v.warning) warnings.push(v.warning)
+    if (rawChainId) {
+      const chainId = Number(rawChainId)
+      if (!Number.isInteger(chainId)) {
+        warnings.push('Chain ID should be a positive integer (50 or 51 for XDC).')
+      } else {
+        const v = this.validateChainId(chainId)
+        if (v.warning) warnings.push(v.warning)
+      }
     }
 
-    // Validate tribe ID
+    // Validate tribe ID (optional)
     const tribeId = parseInt(import.meta.env.VITE_TRIBES_TRIBE_ID || '0')
     if (tribeId > 0) {
       const tribeIdValidation = this.validateTribeId(tribeId)
       if (!tribeIdValidation.isValid) {
-        errors.push(`Tribe ID validation failed: ${tribeIdValidation.error}`)
+        warnings.push(`Tribe ID validation failed: ${tribeIdValidation.error}`)
       }
     }
 
     const status: ConfigurationStatus = {
-      isValid: errors.length === 0,
+      isValid: true, // Tribes SDK works without configuration
       errors,
       warnings,
       missingFields

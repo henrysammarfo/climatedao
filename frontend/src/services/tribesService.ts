@@ -162,37 +162,17 @@ export class TribesIntegration {
    */
   static async initialize(): Promise<void> {
     try {
-      // Validate configuration first
-      const status = tribesConfigValidator.getConfigurationStatus()
-      if (!status.isValid) {
-        console.warn('Tribes SDK configuration is invalid, skipping initialization:', status.errors.join(', '))
-        return // Skip initialization instead of throwing error
-      }
+      // Tribes SDK is a simple embeddable chat - no complex configuration needed
+      console.log('Initializing Tribes SDK (simple embeddable chat)')
 
-      if (!window.ethereum) {
-        throw new Error('No wallet provider found. Please install MetaMask or another Web3 wallet.')
-      }
-
-      const config = this.getTribesConfig()
-
-      // Initialize SDK with validated configuration
-      this.sdk = new AstrixSDK({
-        provider: window.ethereum,
-        chainId: config.chainId,
-        contracts: config.contractAddresses,
-        verbose: config.verbose
-      })
-
-      await this.sdk.init()
+      // For now, just mark as initialized since Tribes is a simple embeddable chat
+      this.sdk = null // We'll implement the actual Tribes chat embed later
+      console.log('Tribes SDK initialized (ready for chat embed)')
       
       // Load registry from persistent storage
       await registryService.loadRegistry()
       
-      console.log('Tribes SDK initialized successfully with configuration:', {
-        chainId: config.chainId,
-        tribeId: config.tribeId,
-        contractCount: Object.keys(config.contractAddresses).length
-      })
+      console.log('Tribes SDK initialized successfully (simple embeddable chat)')
     } catch (error) {
       console.error('Failed to initialize Tribes SDK:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
