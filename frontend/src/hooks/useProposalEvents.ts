@@ -90,34 +90,17 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
     }
   }, [])
 
-  // Refresh proposals function (clears cache) with performance tracking
+  // Refresh proposals function (simplified)
   const refreshProposals = useCallback(async () => {
-    const startTime = performance.now()
-    
     try {
       setIsLoading(true)
       setError(null)
       setLoadingStages(prev => ({ ...prev, freshDataLoading: true }))
       
-      const refreshedProposals = await performanceService.measureAsyncFunction(
-        'refresh-proposals',
-        () => ProposalService.refreshProposals()
-      )
+      const refreshedProposals = await ProposalService.refreshProposals()
       
       setProposals(refreshedProposals)
       setLastUpdatedAt(Date.now())
-      
-      const endTime = performance.now()
-      const loadTime = endTime - startTime
-      
-      performanceService.recordProposalLoading('refresh', loadTime, refreshedProposals.length)
-      
-      setPerformanceMetrics(prev => ({
-        ...prev,
-        freshDataLoadTime: loadTime,
-        totalLoadTime: loadTime,
-        cacheLoadTime: 0, // Reset cache time since we're refreshing
-      }))
       
       toast.success('Proposals refreshed successfully')
     } catch (err) {
@@ -150,9 +133,8 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
     setNewProposalCount(0)
   }, [])
 
-  // Handle new proposal events with performance tracking
+  // Handle new proposal events with simplified approach
   const handleNewProposal = useCallback((newProposal: UIProposal) => {
-    const startTime = performance.now()
     console.log('New proposal received:', newProposal)
     
     setProposals(prevProposals => {
@@ -166,13 +148,6 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
       // Increment new proposal count
       setNewProposalCount(prev => prev + 1)
       
-      // Record performance metrics
-      const endTime = performance.now()
-      performanceService.recordMetric('real-time-proposal-update', endTime - startTime, {
-        proposalId: newProposal.id,
-        proposalCount: updatedProposals.length,
-      })
-      
       // Show toast notification
       toast.success(`New proposal: ${newProposal.title}`, {
         duration: 5000,
@@ -183,7 +158,7 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
     })
   }, [])
 
-  // Initialize proposals with minimal blocking
+  // Initialize proposals with simplified approach
   useEffect(() => {
     if (isInitializedRef.current) return
     
@@ -191,25 +166,10 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
 
     const initialize = async () => {
       try {
-        // Load cached proposals first for immediate display
-        const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
-        if (cachedProposals.length > 0 && EventCache.isCacheValid(CHAIN_ID, CLIMATE_DAO_ADDRESS)) {
-          setProposals(cachedProposals)
-          setIsLoading(false)
-          console.log(`Loaded ${cachedProposals.length} proposals from cache`)
-        } else {
-          setIsLoading(true)
-          // Fetch in background without blocking
-          setTimeout(async () => {
-            if (mounted) {
-              try {
-                await fetchProposals()
-              } catch (err) {
-                console.error('Background fetch failed:', err)
-              }
-            }
-          }, 100)
-        }
+        setIsLoading(true)
+        
+        // Simple direct fetch without complex caching
+        await fetchProposals()
 
         // Set up real-time event subscription
         if (mounted) {
