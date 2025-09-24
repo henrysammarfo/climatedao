@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useState, useEffect, memo } from 'react'
 import { 
   TrendingUp, 
   Users, 
@@ -12,14 +13,27 @@ import { useDAOStats } from '../hooks/useContracts'
 import { useTribes } from '../hooks/useTribes'
 import { useProposalEvents } from '../hooks/useProposalEvents'
 
-const Home = () => {
-  const { totalProposals, formattedFunds } = useDAOStats()
-  const { leaderboard } = useTribes()
+const Home = memo(() => {
+  const [loadData, setLoadData] = useState(false)
+  
+  // Load data progressively to prevent blocking
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadData(true)
+    }, 100) // Small delay to allow initial render
+    
+    return () => clearTimeout(timer)
+  }, [])
+  
+  // Only call hooks after loadData is true
+  const daoStats = loadData ? useDAOStats() : { totalProposals: 0, formattedFunds: '0' }
+  const tribes = loadData ? useTribes() : { leaderboard: [] }
+  const proposalEvents = loadData ? useProposalEvents() : { proposals: [] }
   
   const stats = [
-    { label: 'Active Proposals', value: totalProposals?.toString() || '0', icon: TrendingUp },
-    { label: 'Community Members', value: leaderboard.length.toString(), icon: Users },
-    { label: 'Funds Raised', value: `$${formattedFunds}`, icon: DollarSign },
+    { label: 'Active Proposals', value: daoStats.totalProposals?.toString() || '0', icon: TrendingUp },
+    { label: 'Community Members', value: tribes.leaderboard.length.toString(), icon: Users },
+    { label: 'Funds Raised', value: `$${daoStats.formattedFunds}`, icon: DollarSign },
     { label: 'Projects Funded', value: '0', icon: Leaf }, // Will be updated when proposals are executed
   ]
 
@@ -42,8 +56,7 @@ const Home = () => {
   ]
 
   // Get real proposals from the blockchain
-  const { proposals } = useProposalEvents()
-  const recentProposals = proposals.slice(0, 3) // Show latest 3 proposals
+  const recentProposals = proposalEvents.proposals.slice(0, 3) // Show latest 3 proposals
 
   return (
     <div className="space-y-16">
@@ -188,6 +201,8 @@ const Home = () => {
       </div>
     </div>
   )
-}
+})
+
+Home.displayName = 'Home'
 
 export default Home
