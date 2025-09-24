@@ -17,5 +17,28 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Separate vendor chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor'
+            }
+            if (id.includes('wagmi') || id.includes('viem')) {
+              return 'wagmi-vendor'
+            }
+            if (id.includes('lucide-react') || id.includes('react-hot-toast')) {
+              return 'ui-vendor'
+            }
+            if (id.includes('@reown') || id.includes('@walletconnect') || id.includes('@coinbase')) {
+              return 'web3-vendor'
+            }
+            return 'vendor'
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 })

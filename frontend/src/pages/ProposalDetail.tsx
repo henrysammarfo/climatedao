@@ -7,7 +7,9 @@ import { useProposalStatusMonitor } from '../hooks/useProposalExecution'
 import { useTokenBalance } from '../hooks/useTokenBalance'
 import { VotingPanel } from '../components/VotingPanel'
 import { ProposalExecutionPanel } from '../components/ProposalExecutionPanel'
-import ContextualFaucet from '../components/ContextualFaucet'
+import { lazy, Suspense } from 'react'
+
+const ContextualFaucet = lazy(() => import('../components/ContextualFaucet'))
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
 import { useState, useEffect } from 'react'
@@ -248,11 +250,13 @@ const ProposalDetail = () => {
         <div className="space-y-6">
           {/* Token Requirements for Voting */}
           {address && displayProposal.status === 'Active' && !votingRequirements.canVote && (
-            <ContextualFaucet 
-              mode="inline" 
-              action="vote"
-              className="mb-4"
-            />
+            <Suspense fallback={<div className="animate-pulse bg-gray-200 h-20 rounded-lg"></div>}>
+              <ContextualFaucet 
+                mode="inline" 
+                action="vote"
+                className="mb-4"
+              />
+            </Suspense>
           )}
           
           {/* Voting Panel */}

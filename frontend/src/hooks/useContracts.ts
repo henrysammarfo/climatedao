@@ -19,8 +19,9 @@ export const useTokenBalance = () => {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
-      staleTime: 30000, // 30 seconds
-      refetchInterval: 60000, // 1 minute
+      staleTime: 60000, // 1 minute
+      refetchInterval: 300000, // 5 minutes
+      retry: 1,
     },
   })
 
