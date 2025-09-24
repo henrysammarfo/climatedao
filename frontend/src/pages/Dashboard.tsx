@@ -9,7 +9,7 @@ import {
   Crown
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
-import { useState, lazy, Suspense, useEffect } from 'react'
+import { useState, lazy, Suspense, useEffect, useCallback, useMemo, memo } from 'react'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 // Lazy load heavy components
@@ -24,7 +24,7 @@ import { useTribes } from '../hooks/useTribes'
 import { useAchievements } from '../hooks/useAchievements'
 import { useStakingInfo, useUserProposals, useUserVotes } from '../hooks/useContracts'
 
-const Dashboard = () => {
+const Dashboard = memo(() => {
   const { address } = useAccount()
   const [loadAdvancedFeatures, setLoadAdvancedFeatures] = useState(false)
   
@@ -59,19 +59,45 @@ const Dashboard = () => {
     return () => clearTimeout(timer)
   }, [])
   
-  const achievementStats = loadAdvancedFeatures ? getAchievementStats() : { earnedAchievements: 0, totalAchievements: 0, completionPercentage: 0 }
-  const achievementsByCategory = loadAdvancedFeatures ? getAchievementsByCategory() : {}
-  const filteredAchievements = loadAdvancedFeatures ? sortAchievements(
-    filterAchievements(achievementFilter, selectedCategory || undefined),
-    achievementSort
-  ) : []
+  // Memoize expensive calculations
+  const achievementStats = useMemo(() => 
+    loadAdvancedFeatures ? getAchievementStats() : { earnedAchievements: 0, totalAchievements: 0, completionPercentage: 0 },
+    [loadAdvancedFeatures, getAchievementStats]
+  )
   
-  const stats = [
+  const achievementsByCategory = useMemo(() => 
+    loadAdvancedFeatures ? getAchievementsByCategory() : {},
+    [loadAdvancedFeatures, getAchievementsByCategory]
+  )
+  
+  const filteredAchievements = useMemo(() => 
+    loadAdvancedFeatures ? sortAchievements(
+      filterAchievements(achievementFilter, selectedCategory || undefined),
+      achievementSort
+    ) : [],
+    [loadAdvancedFeatures, filterAchievements, sortAchievements, achievementFilter, selectedCategory, achievementSort]
+  )
+  
+  // Memoize stats to prevent recalculation
+  const stats = useMemo(() => [
     { label: 'Your Proposals', value: userProposals?.length.toString() || '0', icon: FileText, change: 'Active proposals' },
     { label: 'Votes Cast', value: userVotes?.length.toString() || '0', icon: Users, change: 'Total votes' },
     { label: 'Contribution Score', value: userProfile?.xp?.toLocaleString() || '0', icon: Award, change: `Level ${userProfile?.level || 1}` },
     { label: 'Tokens Staked', value: formattedStaked, icon: DollarSign, change: `Rewards: ${formattedRewards} CLIMATE` },
-  ]
+  ], [userProposals?.length, userVotes?.length, userProfile?.xp, userProfile?.level, formattedStaked, formattedRewards])
+
+  // Memoize event handlers
+  const handleAchievementFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAchievementFilter(e.target.value as any)
+  }, [])
+
+  const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCategory(e.target.value)
+  }, [])
+
+  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAchievementSort(e.target.value as any)
+  }, [])
 
   // Real activity data from user actions
   const recentActivity = [
@@ -183,7 +209,7 @@ const Dashboard = () => {
                 <div className="flex flex-wrap gap-2 mb-4">
                   <select
                     value={achievementFilter}
-                    onChange={(e) => setAchievementFilter(e.target.value as any)}
+                    onChange={handleAchievementFilterChange}
                     className="text-sm border border-gray-300 rounded-md px-2 py-1"
                   >
                     <option value="all">All</option>
@@ -194,7 +220,7 @@ const Dashboard = () => {
                   
                   <select
                     value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    onChange={handleCategoryChange}
                     className="text-sm border border-gray-300 rounded-md px-2 py-1"
                   >
                     <option value="">All Categories</option>
@@ -207,7 +233,7 @@ const Dashboard = () => {
                   
                   <select
                     value={achievementSort}
-                    onChange={(e) => setAchievementSort(e.target.value as any)}
+                    onChange={handleSortChange}
                     className="text-sm border border-gray-300 rounded-md px-2 py-1"
                   >
                     <option value="progress">Progress</option>
@@ -361,6 +387,8 @@ const Dashboard = () => {
       )}
     </div>
   )
-}
+})
+
+Dashboard.displayName = 'Dashboard'
 
 export default Dashboard

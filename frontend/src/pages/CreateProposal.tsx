@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, lazy, Suspense, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAccount, useSwitchChain } from 'wagmi'
 import { ArrowLeft, Upload, Sparkles, Brain, TrendingUp, Users, DollarSign, AlertTriangle, CheckCircle, XCircle, Wifi, WifiOff } from 'lucide-react'
@@ -17,7 +17,7 @@ const ContextualFaucet = lazy(() => import('../components/ContextualFaucet'))
 // Import hooks normally but use conditionally
 import { useTribes } from '../hooks/useTribes'
 
-const CreateProposal = () => {
+const CreateProposal = memo(() => {
   const navigate = useNavigate()
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
@@ -781,6 +781,8 @@ const CreateProposal = () => {
       </div>
     </div>
   )
-}
+})
+
+CreateProposal.displayName = 'CreateProposal'
 
 export default CreateProposal

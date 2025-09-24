@@ -71,30 +71,12 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
 
   // Fetch proposals function with performance tracking
   const fetchProposals = useCallback(async () => {
-    const startTime = performance.now()
-    
     try {
       setError(null)
-      setLoadingStages(prev => ({ ...prev, freshDataLoading: true }))
       
-      const fetchedProposals = await performanceService.measureAsyncFunction(
-        'fetch-proposals',
-        () => ProposalService.getAllProposals()
-      )
-      
+      const fetchedProposals = await ProposalService.getAllProposals()
       setProposals(fetchedProposals)
       setLastUpdatedAt(Date.now())
-      
-      const endTime = performance.now()
-      const loadTime = endTime - startTime
-      
-      performanceService.recordProposalLoading('fetch', loadTime, fetchedProposals.length)
-      
-      setPerformanceMetrics(prev => ({
-        ...prev,
-        freshDataLoadTime: loadTime,
-        totalLoadTime: prev.cacheLoadTime + loadTime,
-      }))
       
     } catch (err) {
       console.error('Failed to fetch proposals:', err)
@@ -104,13 +86,7 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
       const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
       if (cachedProposals.length > 0) {
         setProposals(cachedProposals)
-        toast.error('Using cached data. Some proposals may be outdated.')
-        performanceService.recordCacheHit('proposals-fallback', performance.now() - startTime)
-      } else {
-        performanceService.recordCacheMiss('proposals-fallback', performance.now() - startTime)
       }
-    } finally {
-      setLoadingStages(prev => ({ ...prev, freshDataLoading: false }))
     }
   }, [])
 
@@ -212,61 +188,28 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
     if (isInitializedRef.current) return
     
     let mounted = true
-    const totalStartTime = performance.now()
 
     const initialize = async () => {
       try {
         setIsLoading(true)
-        performanceService.startLoadingStage('proposal-initialization')
         
         // Load cached proposals first for immediate display
-        const cacheStartTime = performance.now()
-        setLoadingStages(prev => ({ ...prev, cacheLoading: true }))
-        
         const cachedProposals = EventCache.getCachedProposals(CHAIN_ID, CLIMATE_DAO_ADDRESS)
         if (cachedProposals.length > 0 && EventCache.isCacheValid(CHAIN_ID, CLIMATE_DAO_ADDRESS)) {
           setProposals(cachedProposals)
           setIsLoading(false)
-          
-          const cacheLoadTime = performance.now() - cacheStartTime
-          performanceService.recordCacheHit('proposals-initial', cacheLoadTime)
-          
-          setPerformanceMetrics(prev => ({
-            ...prev,
-            cacheLoadTime,
-            cacheHitRate: 1.0,
-          }))
-          
-          toast.success(`Loaded ${cachedProposals.length} proposals from cache`)
+          console.log(`Loaded ${cachedProposals.length} proposals from cache`)
         } else {
-          const cacheLoadTime = performance.now() - cacheStartTime
-          performanceService.recordCacheMiss('proposals-initial', cacheLoadTime)
-          
-          setPerformanceMetrics(prev => ({
-            ...prev,
-            cacheLoadTime,
-            cacheHitRate: 0.0,
-          }))
-        }
-        
-        setLoadingStages(prev => ({ ...prev, cacheLoading: false }))
-
-        // Fetch fresh proposals in background
-        if (mounted) {
+          // Only fetch if no cache
           await fetchProposals()
         }
 
         // Set up real-time event subscription
         if (mounted) {
-          setLoadingStages(prev => ({ ...prev, realTimeUpdates: true }))
           const unsubscribe = ProposalService.watchProposals(handleNewProposal)
           unsubscribeRef.current = unsubscribe
           setIsConnected(true)
           console.log('Real-time proposal events subscription started')
-          
-          performanceService.recordMetric('real-time-connection', performance.now() - totalStartTime, {
-            connectionType: 'proposal-events',
-          })
         }
       } catch (err) {
         console.error('Failed to initialize proposal events:', err)
@@ -276,16 +219,6 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
         if (mounted) {
           setIsLoading(false)
           isInitializedRef.current = true
-          setLoadingStages(prev => ({ ...prev, realTimeUpdates: false }))
-          
-          const totalLoadTime = performance.now() - totalStartTime
-          performanceService.endLoadingStage('proposal-initialization')
-          performanceService.recordProposalLoading('initialization', totalLoadTime, proposals.length)
-          
-          setPerformanceMetrics(prev => ({
-            ...prev,
-            totalLoadTime,
-          }))
         }
       }
     }
@@ -301,7 +234,7 @@ export const useProposalEvents = (): UseProposalEventsReturn => {
         console.log('Real-time proposal events subscription stopped')
       }
     }
-  }, [fetchProposals, handleNewProposal])
+  }, []) // Remove dependencies to prevent infinite loops
 
   // Cleanup on unmount
   useEffect(() => {

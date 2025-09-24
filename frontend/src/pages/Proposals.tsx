@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react'
+import { useState, lazy, Suspense, useCallback, useMemo, memo } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Search, 
@@ -23,7 +23,7 @@ const ContextualFaucet = lazy(() => import('../components/ContextualFaucet'))
 import { performanceService } from '../services/performanceService'
 import toast from 'react-hot-toast'
 
-const Proposals = () => {
+const Proposals = memo(() => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('all')
   const [showPerformanceMetrics, setShowPerformanceMetrics] = useState(false)
@@ -42,25 +42,35 @@ const Proposals = () => {
   const { getActionRequirements } = useTokenBalance()
   const votingRequirements = getActionRequirements('vote')
 
-  // Filter proposals based on search and filter
-  const filteredProposals = proposals?.filter(proposal => {
-    const matchesSearch = proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         proposal.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filter === 'all' || proposal.status.toLowerCase() === filter.toLowerCase()
-    return matchesSearch && matchesFilter
-  }) || []
+  // Memoize filtered proposals to prevent recalculation on every render
+  const filteredProposals = useMemo(() => 
+    proposals?.filter(proposal => {
+      const matchesSearch = proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           proposal.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesFilter = filter === 'all' || proposal.status.toLowerCase() === filter.toLowerCase()
+      return matchesSearch && matchesFilter
+    }) || [],
+    [proposals, searchTerm, filter]
+  )
 
-  const handleRefresh = async () => {
+  // Memoize event handlers
+  const handleRefresh = useCallback(async () => {
     try {
-      performanceService.startLoadingStage('manual-refresh')
       await refreshProposals()
       toast.success('Proposals refreshed successfully')
     } catch (error) {
+      console.error('Failed to refresh proposals:', error)
       toast.error('Failed to refresh proposals')
-    } finally {
-      performanceService.endLoadingStage('manual-refresh')
     }
-  }
+  }, [refreshProposals])
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+  }, [])
+
+  const handleFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilter(e.target.value)
+  }, [])
 
   const handleRefetch = async () => {
     try {
@@ -209,7 +219,7 @@ const Proposals = () => {
             type="text"
             placeholder="Search proposals..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="input pl-10"
           />
         </div>
@@ -217,7 +227,7 @@ const Proposals = () => {
           <Filter className="w-4 h-4 text-gray-400" />
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={handleFilterChange}
             className="input w-auto"
           >
             <option value="all">All Status</option>
@@ -238,6 +248,8 @@ const Proposals = () => {
       </Suspense>
     </div>
   )
-}
+})
+
+Proposals.displayName = 'Proposals'
 
 export default Proposals
